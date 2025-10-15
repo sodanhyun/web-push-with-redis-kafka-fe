@@ -98,40 +98,43 @@ export const NotificationContainer: React.FC = () => {
   const [notifications, setNotifications] = useState<Notification[]>([]);
 
   useEffect(() => {
-    // 서비스워커에서 메시지 수신
-    const handleMessage = (event: MessageEvent) => {
-      if (event.data && event.data.type === 'NOTIFICATION_RECEIVED') {
-        const notification: Notification = {
+    const handleNotificationClick = (event: Event) => {
+      console.log('[NotificationToast.tsx] notification-clicked event received:', event);
+      const customEvent = event as CustomEvent;
+      const notificationData = customEvent.detail;
+
+      if (notificationData) {
+        console.log('[NotificationToast.tsx] Notification data:', notificationData);
+        const newNotification: Notification = {
           id: Date.now().toString(),
-          title: event.data.title || '알림',
-          message: event.data.message || '새로운 메시지가 있습니다.',
-          type: event.data.notificationType || event.data.type || 'info',
+          title: notificationData.title || '알림',
+          message: notificationData.body || '새로운 메시지가 있습니다.',
+          type: 'info',
           timestamp: Date.now(),
         };
-        
-        setNotifications(prev => [...prev, notification]);
+        setNotifications(prev => [...prev, newNotification]);
       }
     };
+    const handleNotificationDisplayed = (event: Event) => {
+      const customEvent = event as CustomEvent;
+      const notificationData = customEvent.detail;
 
-    // 브라우저 알림 클릭 이벤트
-    const handleNotificationClick = () => {
-      const notification: Notification = {
-        id: Date.now().toString(),
-        title: '알림 클릭',
-        message: '브라우저 알림을 클릭했습니다.',
-        type: 'info',
-        timestamp: Date.now(),
-      };
-      
-      setNotifications(prev => [...prev, notification]);
-    };
-
-    window.addEventListener('message', handleMessage);
-    window.addEventListener('notificationclick', handleNotificationClick);
-
+      if (notificationData) {
+        const newNotification: Notification = {
+          id: Date.now().toString(),
+          title: notificationData.title || '알림',
+          message: notificationData.body || '새로운 메시지가 있습니다.',
+          type: 'info',
+          timestamp: Date.now(),
+        };
+        setNotifications(prev => [...prev, newNotification]);
+      }
+    }
+    window.addEventListener('notification-clicked', handleNotificationClick);
+    window.addEventListener('notification-displayed', handleNotificationDisplayed);
     return () => {
-      window.removeEventListener('message', handleMessage);
-      window.removeEventListener('notificationclick', handleNotificationClick);
+      window.removeEventListener('notification-clicked', handleNotificationClick);
+      window.removeEventListener('notification-displayed', handleNotificationDisplayed);
     };
   }, []);
 
@@ -150,135 +153,6 @@ export const NotificationContainer: React.FC = () => {
           onClose={() => removeNotification(notification.id)}
         />
       ))}
-    </div>
-  );
-};
-
-// 푸시 알림 설정 컴포넌트
-interface PushNotificationSettingsProps {
-  isSupported: boolean;
-  permission: NotificationPermission;
-  isSubscribed: boolean;
-  onRequestPermission: () => Promise<boolean>;
-  onSubscribe: () => Promise<boolean>;
-  onUnsubscribe: () => Promise<boolean>;
-  error: string | null;
-  onClearError: () => void;
-}
-
-export const PushNotificationSettings: React.FC<PushNotificationSettingsProps> = ({
-  isSupported,
-  permission,
-  isSubscribed,
-  onRequestPermission,
-  onSubscribe,
-  onUnsubscribe,
-  error,
-  onClearError,
-}) => {
-  const [isLoading, setIsLoading] = useState(false);
-
-  const handleRequestPermission = async () => {
-    setIsLoading(true);
-    try {
-      await onRequestPermission();
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleSubscribe = async () => {
-    setIsLoading(true);
-    try {
-      const success = await onSubscribe();
-      if (success) {
-        // 구독 성공 시 토큰을 서버로 전송하는 로직은 Hook에서 처리
-        console.log('푸시 알림 구독이 완료되었습니다.');
-      }
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleUnsubscribe = async () => {
-    setIsLoading(true);
-    try {
-      await onUnsubscribe();
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  if (!isSupported) {
-    return (
-      <div className="push-notification-settings">
-        <h3>푸시 알림</h3>
-        <p className="error-message">
-          이 브라우저는 푸시 알림을 지원하지 않습니다.
-        </p>
-      </div>
-    );
-  }
-
-  return (
-    <div className="push-notification-settings">
-      <h3>푸시 알림 설정</h3>
-      
-      {error && (
-        <div className="error-message">
-          {error}
-          <button onClick={onClearError} className="clear-error-btn">
-            ×
-          </button>
-        </div>
-      )}
-
-      <div className="permission-status">
-        <strong>권한 상태:</strong> 
-        <span className={`status ${permission}`}>
-          {permission === 'granted' ? '허용됨' : 
-           permission === 'denied' ? '거부됨' : '요청 필요'}
-        </span>
-      </div>
-
-      <div className="subscription-status">
-        <strong>구독 상태:</strong> 
-        <span className={`status ${isSubscribed ? 'subscribed' : 'not-subscribed'}`}>
-          {isSubscribed ? '구독됨' : '구독 안됨'}
-        </span>
-      </div>
-
-      <div className="action-buttons">
-        {permission !== 'granted' && (
-          <button 
-            onClick={handleRequestPermission}
-            disabled={isLoading}
-            className="btn btn-primary"
-          >
-            {isLoading ? '요청 중...' : '권한 요청'}
-          </button>
-        )}
-
-        {permission === 'granted' && !isSubscribed && (
-          <button 
-            onClick={handleSubscribe}
-            disabled={isLoading}
-            className="btn btn-success"
-          >
-            {isLoading ? '구독 중...' : '푸시 알림 구독'}
-          </button>
-        )}
-
-        {isSubscribed && (
-          <button 
-            onClick={handleUnsubscribe}
-            disabled={isLoading}
-            className="btn btn-danger"
-          >
-            {isLoading ? '해제 중...' : '구독 해제'}
-          </button>
-        )}
-      </div>
     </div>
   );
 };

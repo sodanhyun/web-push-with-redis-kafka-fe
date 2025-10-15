@@ -109,7 +109,6 @@ self.addEventListener('push', (event) => {
         }
       };
     } catch (error) {
-      console.error('Service Worker: Error parsing push data:', error);
       // JSON 파싱 실패 시 텍스트로 처리
       notificationData.body = event.data.text() || notificationData.body;
     }
@@ -131,37 +130,30 @@ self.addEventListener('push', (event) => {
   };
 
   console.log('Service Worker: Showing notification with options:', notificationOptions);
-
   // 알림 표시
   event.waitUntil(
     self.registration.showNotification(notificationData.title, notificationOptions)
-      .then(() => {
-        console.log('Service Worker: Notification displayed successfully');
-        
-        // 메인 스레드에 알림 표시 완료 메시지 전송
-        return self.clients.matchAll({ type: 'window', includeUncontrolled: true });
-      })
-      .then((clients) => {
-        // 모든 클라이언트에 알림 표시 완료 메시지 전송
-        clients.forEach(client => {
-          client.postMessage({
-            type: 'NOTIFICATION_DISPLAYED',
-            notificationId: notificationData.data.notificationId,
-            title: notificationData.title,
-            body: notificationData.body,
-            timestamp: notificationData.timestamp
-          });
-        });
-      })
-      .catch((error) => {
-        console.error('Service Worker: Failed to show notification:', error);
-      })
+    .then(() => {
+      const pushData = {
+        type: 'NOTIFICATION_DISPLAYED',
+        notificationId: notificationData.data.notificationId,
+        title: notificationData.title,
+        body: notificationData.body,
+        timestamp: notificationData.timestamp
+      }
+      const bc = new BroadcastChannel('notification-channel');
+      bc.postMessage(pushData);
+      bc.close();
+    })
+    .catch((error) => {
+      console.error('Service Worker: Failed to show notification:', error);
+    })
   );
 });
 
 // 알림 클릭 이벤트 처리
 self.addEventListener('notificationclick', (event) => {
-  console.log('Service Worker: Notification clicked', event);
+  console.log('[sw.js] Notification clicked', event);
   
   const notification = event.notification;
   const action = event.action;
@@ -183,13 +175,18 @@ self.addEventListener('notificationclick', (event) => {
     priority: notificationData.priority
   };
 
-  console.log('Service Worker: Sending click event to main thread:', clickData);
+  console.log('[sw.js] Sending click event to main thread:', clickData);
+  const bc = new BroadcastChannel('notification-channel');
+  bc.postMessage(clickData);
+  bc.close();
 
   event.waitUntil(
     clients.matchAll({ type: 'window', includeUncontrolled: true })
       .then((clientList) => {
+        console.log('[sw.js] Found clients:', clientList.length);
         // 모든 클라이언트에 알림 클릭 이벤트 전송
         clientList.forEach(client => {
+          console.log('[sw.js] Posting message to client:', client.url);
           client.postMessage(clickData);
         });
 
@@ -222,98 +219,98 @@ self.addEventListener('notificationclick', (event) => {
   );
 });
 
-// 백그라운드 동기화 (선택사항)
-self.addEventListener('sync', (event) => {
-  console.log('Service Worker: Background sync');
-  if (event.tag === 'background-sync') {
-    event.waitUntil(doBackgroundSync());
-  }
-});
-
-function doBackgroundSync() {
-  // 백그라운드에서 실행할 작업
-  return Promise.resolve();
-}
-
 // 메시지 이벤트 처리 (메인 스레드와 통신)
-self.addEventListener('message', (event) => {
-  console.log('Service Worker: Message received:', event.data);
+// self.addEventListener('message', (event) => {
+//   console.log('Service Worker: Message received:', event.data);
   
-  const { type, data } = event.data || {};
+//   const { type, data } = event.data || {};
   
-  switch (type) {
-    case 'SKIP_WAITING':
-      console.log('Service Worker: Skipping waiting...');
-      self.skipWaiting();
-      break;
+//   switch (type) {
+//     case 'SKIP_WAITING':
+//       console.log('Service Worker: Skipping waiting...');
+//       self.skipWaiting();
+//       break;
       
-    case 'GET_NOTIFICATION_PERMISSION':
-      // 알림 권한 상태 확인 요청
-      event.ports[0]?.postMessage({
-        type: 'NOTIFICATION_PERMISSION_STATUS',
-        permission: Notification.permission
-      });
-      break;
+//     case 'GET_NOTIFICATION_PERMISSION':
+//       // 알림 권한 상태 확인 요청
+//       event.ports[0]?.postMessage({
+//         type: 'NOTIFICATION_PERMISSION_STATUS',
+//         permission: Notification.permission
+//       });
+//       break;
       
-    case 'SEND_TEST_NOTIFICATION':
-      // 테스트 알림 전송 요청
-      const testNotificationData = {
-        title: data?.title || '테스트 알림',
-        body: data?.body || '이것은 테스트 알림입니다.',
-        icon: data?.icon || '/vite.svg',
-        tag: `test-${Date.now()}`,
-        data: {
-          url: data?.url || '/',
-          timestamp: Date.now(),
-          notificationId: `test-${Date.now()}`,
-          category: 'test',
-          priority: 'normal'
-        }
-      };
+//     case 'SEND_TEST_NOTIFICATION':
+//       // 테스트 알림 전송 요청
+//       const testNotificationData = {
+//         title: data?.title || '테스트 알림',
+//         body: data?.body || '이것은 테스트 알림입니다.',
+//         icon: data?.icon || '/vite.svg',
+//         tag: `test-${Date.now()}`,
+//         data: {
+//           url: data?.url || '/',
+//           timestamp: Date.now(),
+//           notificationId: `test-${Date.now()}`,
+//           category: 'test',
+//           priority: 'normal'
+//         }
+//       };
       
-      self.registration.showNotification(testNotificationData.title, testNotificationData)
-        .then(() => {
-          console.log('Service Worker: Test notification sent');
-          event.ports[0]?.postMessage({
-            type: 'TEST_NOTIFICATION_SENT',
-            success: true
-          });
-        })
-        .catch((error) => {
-          console.error('Service Worker: Failed to send test notification:', error);
-          event.ports[0]?.postMessage({
-            type: 'TEST_NOTIFICATION_SENT',
-            success: false,
-            error: error.message
-          });
-        });
-      break;
+//       self.registration.showNotification(testNotificationData.title, testNotificationData)
+//         .then(() => {
+//           console.log('Service Worker: Test notification sent');
+//           event.ports[0]?.postMessage({
+//             type: 'TEST_NOTIFICATION_SENT',
+//             success: true
+//           });
+//         })
+//         .catch((error) => {
+//           console.error('Service Worker: Failed to send test notification:', error);
+//           event.ports[0]?.postMessage({
+//             type: 'TEST_NOTIFICATION_SENT',
+//             success: false,
+//             error: error.message
+//           });
+//         });
+//       break;
       
-    case 'CLEAR_ALL_NOTIFICATIONS':
-      // 모든 알림 클리어 요청
-      self.registration.getNotifications()
-        .then((notifications) => {
-          notifications.forEach(notification => notification.close());
-          console.log('Service Worker: All notifications cleared');
-          event.ports[0]?.postMessage({
-            type: 'NOTIFICATIONS_CLEARED',
-            count: notifications.length
-          });
-        });
-      break;
+//     case 'CLEAR_ALL_NOTIFICATIONS':
+//       // 모든 알림 클리어 요청
+//       self.registration.getNotifications()
+//         .then((notifications) => {
+//           notifications.forEach(notification => notification.close());
+//           console.log('Service Worker: All notifications cleared');
+//           event.ports[0]?.postMessage({
+//             type: 'NOTIFICATIONS_CLEARED',
+//             count: notifications.length
+//           });
+//         });
+//       break;
       
-    case 'GET_NOTIFICATION_COUNT':
-      // 현재 알림 개수 조회 요청
-      self.registration.getNotifications()
-        .then((notifications) => {
-          event.ports[0]?.postMessage({
-            type: 'NOTIFICATION_COUNT',
-            count: notifications.length
-          });
-        });
-      break;
+//     case 'GET_NOTIFICATION_COUNT':
+//       // 현재 알림 개수 조회 요청
+//       self.registration.getNotifications()
+//         .then((notifications) => {
+//           event.ports[0]?.postMessage({
+//             type: 'NOTIFICATION_COUNT',
+//             count: notifications.length
+//           });
+//         });
+//       break;
       
-    default:
-      console.log('Service Worker: Unknown message type:', type);
-  }
-});
+//     default:
+//       console.log('Service Worker: Unknown message type:', type);
+//   }
+// });
+
+// 백그라운드 동기화 (선택사항)
+// self.addEventListener('sync', (event) => {
+//   console.log('Service Worker: Background sync');
+//   if (event.tag === 'background-sync') {
+//     event.waitUntil(doBackgroundSync());
+//   }
+// });
+
+// function doBackgroundSync() {
+//   // 백그라운드에서 실행할 작업
+//   return Promise.resolve();
+// }

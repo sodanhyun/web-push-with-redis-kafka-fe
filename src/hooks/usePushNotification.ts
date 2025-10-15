@@ -12,7 +12,7 @@ interface PushNotificationActions {
   requestPermission: () => Promise<boolean>;
   subscribe: () => Promise<boolean>;
   unsubscribe: () => Promise<boolean>;
-  // sendTokenToServer: (token: string) => Promise<void>;
+  sendTestNotification: () => void;
   clearError: () => void;
 }
 
@@ -24,6 +24,19 @@ export const usePushNotification = (): PushNotificationState & PushNotificationA
     subscription: null,
     error: null,
   });
+
+  const sendTestNotification = useCallback(() => {
+    if (navigator.serviceWorker.controller) {
+      navigator.serviceWorker.controller.postMessage({
+        type: 'SEND_TEST_NOTIFICATION',
+        data: {
+          title: '테스트 알림',
+          body: '이것은 테스트 알림입니다.',
+          url: '/',
+        },
+      });
+    }
+  }, []);
 
   // 서비스워커 등록
   const registerServiceWorker = useCallback(async () => {
@@ -83,7 +96,7 @@ export const usePushNotification = (): PushNotificationState & PushNotificationA
       const registration = await navigator.serviceWorker.ready;
       const subscription = await registration.pushManager.subscribe({
         userVisibleOnly: true,
-        applicationServerKey: import.meta.env.VITE_APP_VAPID_PUBLIC_KEY || 'BEl62iUYgUivxIkv69yViEuiBIa40HI8p8KJguxQn4X4VXH9B8wP3ZWhN36yK10Mxhm0V8FId0U8nXjWQ9XNSHg'
+        applicationServerKey: import.meta.env.VITE_APP_VAPID_PUBLIC_KEY
       });
 
       setState(prev => ({ 
@@ -122,24 +135,6 @@ export const usePushNotification = (): PushNotificationState & PushNotificationA
       return false;
     }
   }, [state.subscription]);
-
-  // 토큰을 서버로 전송
-  // const sendTokenToServer = useCallback(async (token: string): Promise<void> => {
-  //   try {
-  //     await axios.post('/api/push-token', {
-  //       token,
-  //       userId: 'user123', // 실제 사용자 ID로 교체
-  //       deviceInfo: {
-  //         userAgent: navigator.userAgent,
-  //         platform: navigator.platform,
-  //       }
-  //     });
-  //     console.log('Token sent to server successfully');
-  //   } catch (error) {
-  //     console.error('Failed to send token to server:', error);
-  //     setState(prev => ({ ...prev, error: '토큰 전송에 실패했습니다.' }));
-  //   }
-  // }, []);
 
   // 에러 클리어
   const clearError = useCallback(() => {
@@ -185,7 +180,7 @@ export const usePushNotification = (): PushNotificationState & PushNotificationA
     requestPermission,
     subscribe,
     unsubscribe,
-    // sendTokenToServer,
+    sendTestNotification,
     clearError,
   };
 };
