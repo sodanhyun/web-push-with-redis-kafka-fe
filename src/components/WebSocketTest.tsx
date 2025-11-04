@@ -118,7 +118,6 @@ const WebSocketTest: React.FC<WebSocketTestProps> = ({ userId }) => {
         if (userId && testPushMessage) {
             try {
                 await sendPushNotification(userId, testPushMessage);
-                alert("테스트 푸시 알림 전송 성공!");
             } catch (error) {
                 console.error("테스트 푸시 알림 전송 실패:", error);
                 alert("테스트 푸시 알림 전송 실패!");
