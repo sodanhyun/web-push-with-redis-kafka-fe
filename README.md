@@ -47,37 +47,32 @@ mkcert는 브라우저 경고를 피하면서 로컬에서 신뢰할 수 있는 
 5
 6 # 인증서 생성
 7 npm run setup:https:mkcert
-8 # Windows 사용자의 경우 다음을 실행해야 할 수 있습니다:
-9 # npm run setup:https:mkcert:win
 
-🔧 대안: 자체 서명 인증서 (브라우저 경고 발생)
+mkcert 재설치 및 신뢰 루트 인증서 재등록
 
-자체 서명 인증서를 생성할 수 있지만, 브라우저에서 "안전하지 않음" 경고가 표시됩니다.
+mkcert -uninstall로 기존 루트 인증서 제거
 
-1 # 자체 서명 인증서 생성 (node-forge 사용)
-2 npm run setup:https
+mkcert -install로 로컬 신뢰 루트 인증서 재설치
+
+mkcert -cert-file localhost.pem -key-file localhost-key.pem localhost 127.0.0.1 ::1
 
 3. 환경 변수
 
 프로젝트 루트 (web-push-with-redis-kafka-fe/.env)에 .env 파일을 생성하고 다음 내용을 추가합니다:
 
 1 # API 설정
-2 VITE_API_URL=http://localhost:8080/api # 백엔드 API 기본 URL
+2 VITE_API_URL=/api # 백엔드 API 기본 URL
 3 VITE_WS_URL=ws://localhost:8080/ws # 백엔드 WebSocket 기본 URL
 4
 5 # VAPID 공개 키 (백엔드 설정에서 가져옴)
 6 VITE_APP_VAPID_PUBLIC_KEY=YOUR_VAPID_PUBLIC_KEY_HERE
 
+공개키 생성성
+npx web-push generate-vapid-keys
+
 참고: YOUR_VAPID_PUBLIC_KEY_HERE를 백엔드 애플리케이션에서 생성된 실제 VAPID 공개 키로 대체하십시오.
 
 4. 개발 서버 실행
-
-HTTPS로 개발 서버를 시작합니다 (푸시 알림에 권장):
-
-1 npm run dev:https
-
-또는 HTTP로 실행할 수 있습니다 (푸시 알림은 작동하지 않습니다):
-
 1 npm run dev
 
 5. 브라우저에서 접속
