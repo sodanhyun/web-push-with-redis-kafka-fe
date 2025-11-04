@@ -1,81 +1,126 @@
-import axios from 'axios';
+import axios from 'axios'; // HTTP 요청을 위한 axios 라이브러리를 임포트합니다.
 
-// Axios 인스턴스 생성
+/**
+ * @description 푸시 알림 관련 API 요청을 위한 Axios 인스턴스를 생성합니다.
+ *
+ * - `baseURL`: 환경 변수 `VITE_API_URL`을 사용하여 API의 기본 URL을 설정합니다.
+ *              이는 개발 및 배포 환경에 따라 유연하게 변경될 수 있습니다.
+ * - `timeout`: 요청 타임아웃을 10초(10000ms)로 설정하여 응답이 지연될 경우를 대비합니다.
+ * - `headers`: 모든 요청에 `Content-Type`을 `application/json`으로 설정합니다.
+ */
 const pushApi = axios.create({
-  baseURL: import.meta.env.VITE_API_URL,
-  timeout: 10000,
+  baseURL: import.meta.env.VITE_API_URL, // Vite 환경 변수에서 API 기본 URL을 가져옵니다.
+  timeout: 10000, // 요청 타임아웃을 10초로 설정합니다.
   headers: {
-    'Content-Type': 'application/json',
+    'Content-Type': 'application/json', // JSON 형식의 데이터를 전송함을 명시합니다.
   },
 });
 
-// 푸시 토큰 관련 API 타입 정의
+/**
+ * @interface PushTokenData
+ * @description 푸시 토큰 정보를 정의하는 인터페이스입니다.
+ * (현재 사용되지 않지만, 향후 확장성을 위해 정의되어 있습니다.)
+ */
 export interface PushTokenData {
-  token: string;
-  userId: string;
+  token: string; // 디바이스 푸시 토큰
+  userId: string; // 사용자 ID
   deviceInfo: {
-    userAgent: string;
-    platform: string;
-    language?: string;
-    timezone?: string;
+    userAgent: string; // 사용자 에이전트 문자열
+    platform: string; // 운영체제 플랫폼
+    language?: string; // 언어 (선택 사항)
+    timezone?: string; // 시간대 (선택 사항)
   };
 }
 
+/**
+ * @interface PushTokenResponse
+ * @description 푸시 토큰 관련 API 응답 형식을 정의하는 인터페이스입니다.
+ */
 export interface PushTokenResponse {
-  success: boolean;
-  message: string;
-  tokenId?: string;
+  success: boolean; // 요청 성공 여부
+  message: string; // 응답 메시지
+  tokenId?: string; // 토큰 ID (선택 사항)
 }
 
+/**
+ * @interface PushSubscriptionData
+ * @description Web Push 구독 정보를 정의하는 인터페이스입니다.
+ * 서비스 워커에서 생성된 구독 객체의 핵심 정보들을 포함합니다.
+ */
 export interface PushSubscriptionData {
-  endpoint: string;
-  keys: {
-    p256dh: string;
-    auth: string;
+  endpoint: string; // 푸시 서비스 엔드포인트 URL
+  userId: string; // 구독과 연결될 사용자 ID
+  keys: { // 암호화 키 정보
+    p256dh: string; // P-256 elliptic curve Diffie-Hellman 공개 키 (Base64 인코딩)
+    auth: string; // 인증 비밀 키 (Base64 인코딩)
   };
 }
 
-// 푸시 구독 정보를 서버에 등록
+/**
+ * @async
+ * @function registerPushSubscription
+ * @description 클라이언트의 푸시 구독 정보를 백엔드 서버에 등록합니다.
+ *
+ * @param {PushSubscriptionData} data - 서버에 등록할 푸시 구독 정보 객체입니다.
+ * @returns {Promise<PushTokenResponse>} - 서버로부터의 응답 데이터를 포함하는 Promise입니다.
+ * @throws {Error} - API 요청 실패 시 에러를 던집니다.
+ */
 export const registerPushSubscription = async (data: PushSubscriptionData): Promise<PushTokenResponse> => {
   try {
+    // `/push/subscribe` 엔드포인트로 POST 요청을 보냅니다.
     const response = await pushApi.post<PushTokenResponse>('/push/subscribe', data);
-    return response.data;
+    return response.data; // 서버 응답 데이터를 반환합니다.
   } catch (error) {
-    console.error('Failed to register push subscription:', error);
-    throw new Error('푸시 구독 등록에 실패했습니다.');
+    console.error('Failed to register push subscription:', error); // 에러 로깅
+    throw new Error('푸시 구독 등록에 실패했습니다.'); // 사용자 친화적인 에러 메시지 던지기
   }
 };
 
-// 테스트 푸시 알림 전송
-export const sendPushNotification = async (message: string): Promise<PushTokenResponse> => {
+/**
+ * @async
+ * @function sendPushNotification
+ * @description 특정 사용자에게 테스트 푸시 알림을 전송하도록 백엔드 서버에 요청합니다.
+ *
+ * @param {string} userId - 알림을 받을 사용자의 ID입니다.
+ * @param {string} message - 알림에 포함될 메시지 내용입니다.
+ * @returns {Promise<PushTokenResponse>} - 서버로부터의 응답 데이터를 포함하는 Promise입니다.
+ * @throws {Error} - API 요청 실패 시 에러를 던집니다.
+ */
+export const sendPushNotification = async (userId: string, message: string): Promise<PushTokenResponse> => {
   try {
+    // `/notifications` 엔드포인트로 POST 요청을 보냅니다.
+    // 요청 본문에는 userId와 message를 포함합니다.
     const response = await pushApi.post<PushTokenResponse>('/notifications', {
-      // userId,
+      userId,
       message,
-      // title: '테스트 알림',
+      // title: '테스트 알림', // 필요에 따라 주석 해제하여 사용할 수 있습니다.
     });
-    return response.data;
+    return response.data; // 서버 응답 데이터를 반환합니다.
   } catch (error) {
-    console.error('Failed to send test push notification:', error);
-    throw new Error('테스트 푸시 알림 전송에 실패했습니다.');
+    console.error('Failed to send test push notification:', error); // 에러 로깅
+    throw new Error('테스트 푸시 알림 전송에 실패했습니다.'); // 사용자 친화적인 에러 메시지 던지기
   }
 };
 
-// 푸시 알림 설정 업데이트
+/**
+ * @interface PushNotificationSettings
+ * @description 푸시 알림 설정 정보를 정의하는 인터페이스입니다.
+ * (현재 사용되지 않지만, 향후 확장성을 위해 정의되어 있습니다.)
+ */
 export interface PushNotificationSettings {
-  userId: string;
-  enabled: boolean;
-  types: {
-    general: boolean;
-    marketing: boolean;
-    updates: boolean;
-    reminders: boolean;
+  userId: string; // 사용자 ID
+  enabled: boolean; // 푸시 알림 활성화 여부
+  types: { // 알림 타입별 설정
+    general: boolean; // 일반 알림
+    marketing: boolean; // 마케팅 알림
+    updates: boolean; // 업데이트 알림
+    reminders: boolean; // 미리 알림
   };
-  quietHours: {
-    enabled: boolean;
-    start: string; // HH:mm format
-    end: string;   // HH:mm format
+  quietHours: { // 방해 금지 시간 설정
+    enabled: boolean; // 방해 금지 시간 활성화 여부
+    start: string; // 시작 시간 (HH:mm 형식)
+    end: string;   // 종료 시간 (HH:mm 형식)
   };
 }
 
-export default pushApi;
+export default pushApi; // Axios 인스턴스를 기본 내보내기로 설정합니다.

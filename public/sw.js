@@ -1,316 +1,125 @@
-// 서비스워커 등록 및 푸시 알림 처리
-const CACHE_NAME = 'my-toy-app-v1';
-const urlsToCache = [
-  '/',
-  '/static/js/bundle.js',
-  '/static/css/main.css',
-  '/manifest.json'
-];
+// sw.js
+// 이 파일은 웹 애플리케이션의 서비스 워커 스크립트입니다.
+// 푸시 알림 수신 및 클릭 처리, 그리고 메인 스레드와의 통신을 담당합니다.
 
-// 서비스워커 설치
-self.addEventListener('install', (event) => {
-  console.log('Service Worker: Installing...');
-  event.waitUntil(
-    caches.open(CACHE_NAME)
-      .then((cache) => {
-        console.log('Service Worker: Caching files');
-        return cache.addAll(urlsToCache);
-      })
-      .then(() => {
-        console.log('Service Worker: Installed');
-        return self.skipWaiting();
-      })
-  );
-});
-
-// 서비스워커 활성화
-self.addEventListener('activate', (event) => {
-  console.log('Service Worker: Activating...');
-  event.waitUntil(
-    caches.keys().then((cacheNames) => {
-      return Promise.all(
-        cacheNames.map((cacheName) => {
-          if (cacheName !== CACHE_NAME) {
-            console.log('Service Worker: Deleting old cache:', cacheName);
-            return caches.delete(cacheName);
-          }
-        })
-      );
-    }).then(() => {
-      console.log('Service Worker: Activated');
-      return self.clients.claim();
-    })
-  );
-});
-
-// 푸시 이벤트 처리
+/**
+ * @event push
+ * @description 서버로부터 푸시 메시지를 수신했을 때 발생하는 이벤트 리스너입니다.
+ *              이벤트 데이터 파싱 후 시스템 알림을 표시합니다.
+ */
 self.addEventListener('push', (event) => {
-  console.log('Service Worker: Push received', event);
-  
-  // 기본 알림 데이터
-  let notificationData = {
-    title: '새로운 알림',
-    body: '새로운 메시지가 도착했습니다.',
-    icon: '/vite.svg',
-    badge: '/vite.svg',
-    image: null,
-    tag: 'default-notification',
-    requireInteraction: false,
-    silent: false,
-    vibrate: [200, 100, 200],
-    timestamp: Date.now(),
-    url: '/',
-    actions: [
-      {
-        action: 'view',
-        title: '보기',
-        icon: '/vite.svg'
-      },
-      {
-        action: 'dismiss',
-        title: '닫기'
-      }
-    ],
-    data: {
-      url: '/',
-      timestamp: Date.now(),
-      notificationId: null
-    }
-  };
+  // 푸시 데이터를 저장할 객체와 알림 본문 기본값을 초기화합니다.
+  let pushData = {};
+  let notificationBody = '새로운 메시지가 도착했습니다.'; // 푸시 데이터에 본문이 없을 경우 사용될 기본 메시지
 
-  // 푸시 데이터 파싱
+  // event.data (PushMessageData 객체)가 존재하는지 확인합니다.
   if (event.data) {
     try {
-      const pushData = event.data.json();
-      console.log('Service Worker: Parsed push data:', pushData);
-      
-      // 푸시 데이터를 알림 데이터로 매핑
-      notificationData = {
-        ...notificationData,
-        title: pushData.title || notificationData.title,
-        body: pushData.body || pushData.message || notificationData.body,
-        icon: pushData.icon || notificationData.icon,
-        badge: pushData.badge || notificationData.badge,
-        image: pushData.image || notificationData.image,
-        tag: pushData.tag || `notification-${Date.now()}`,
-        requireInteraction: pushData.requireInteraction || false,
-        silent: pushData.silent || false,
-        vibrate: pushData.vibrate || notificationData.vibrate,
-        url: pushData.url || pushData.click_action || notificationData.url,
-        actions: pushData.actions || notificationData.actions,
-        data: {
-          ...notificationData.data,
-          ...pushData.data,
-          url: pushData.url || pushData.click_action || notificationData.url,
-          timestamp: Date.now(),
-          notificationId: pushData.notificationId || `notif-${Date.now()}`,
-          category: pushData.category || 'general',
-          priority: pushData.priority || 'normal'
-        }
-      };
-    } catch (error) {
-      // JSON 파싱 실패 시 텍스트로 처리
-      notificationData.body = event.data.text() || notificationData.body;
+      // 1. 푸시 데이터를 JSON 형식으로 파싱을 시도합니다.
+      pushData = event.data.json();
+      // JSON 파싱에 성공하면, 파싱된 데이터에서 본문을 가져오거나 기본값을 사용합니다.
+      notificationBody = pushData.body || pushData.message || notificationBody;
+    } catch (e) {
+      // 2. JSON 파싱에 실패하면, 데이터를 일반 텍스트로 처리합니다.
+      notificationBody = event.data.text() || notificationBody;
+      console.error('푸시 데이터를 JSON으로 파싱하는데 실패했습니다. 텍스트로 처리합니다:', e);
+      // 일반 텍스트인 경우, pushData 객체는 본문만 포함하도록 재구성합니다.
+      pushData = { body: notificationBody };
     }
   }
 
-  // 알림 표시 옵션 구성
-  const notificationOptions = {
-    body: notificationData.body,
-    icon: notificationData.icon,
-    badge: notificationData.badge,
-    image: notificationData.image,
-    tag: notificationData.tag,
-    requireInteraction: notificationData.requireInteraction,
-    silent: notificationData.silent,
-    vibrate: notificationData.vibrate,
-    timestamp: notificationData.timestamp,
-    actions: notificationData.actions,
-    data: notificationData.data
+  // 알림의 제목을 설정합니다. pushData에 title이 없으면 기본값을 사용합니다.
+  const title = pushData.title || '새로운 알림';
+
+  // 알림 옵션의 `data` 속성에 사용될 객체를 미리 정의하여 `notificationId`를 보장합니다.
+  const notificationDataForOptions = {
+    url: pushData.url || '/', // 알림 클릭 시 이동할 URL (없으면 루트 경로)
+    notificationId: pushData.notificationId || `notif-${Date.now()}` // 알림의 고유 ID (없으면 현재 타임스탬프 사용)
   };
 
-  console.log('Service Worker: Showing notification with options:', notificationOptions);
-  // 알림 표시
+  // `showNotification` 메서드에 전달될 알림 옵션 객체를 구성합니다.
+  const options = {
+    body: notificationBody, // 알림 본문
+    // 아이콘 경로를 절대 URL로 변환합니다. (상대 경로 문제 방지)
+    icon: pushData.icon ? new URL(pushData.icon, self.location.origin).href : new URL('/vite.svg', self.location.origin).href,
+    // 배지 아이콘 경로를 절대 URL로 변환합니다. (상대 경로 문제 방지)
+    badge: pushData.badge ? new URL(pushData.badge, self.location.origin).href : new URL('/vite.svg', self.location.origin).href,
+    image: pushData.image, // 알림에 표시될 이미지 (선택 사항)
+    // 알림 태그를 설정합니다. 고유한 태그를 사용하여 알림이 덮어쓰여지는 것을 방지합니다.
+    tag: pushData.tag || notificationDataForOptions.notificationId,
+    requireInteraction: pushData.requireInteraction || false, // 사용자가 닫을 때까지 알림 유지 여부
+    data: notificationDataForOptions, // 알림과 관련된 추가 데이터
+    actions: pushData.actions || [] // 알림에 표시될 액션 버튼들
+  };
+
+  // 알림을 표시하기 전에 디버깅을 위한 로그를 출력합니다.
+  console.log('Service Worker: Attempting to show notification with title:', title);
+  console.log('Service Worker: Notification options:', options);
+
+  // `event.waitUntil`을 사용하여 서비스 워커가 알림 표시 작업을 완료할 때까지 활성 상태를 유지하도록 합니다.
   event.waitUntil(
-    self.registration.showNotification(notificationData.title, notificationOptions)
-    .then(() => {
-      const pushData = {
-        type: 'NOTIFICATION_DISPLAYED',
-        notificationId: notificationData.data.notificationId,
-        title: notificationData.title,
-        body: notificationData.body,
-        timestamp: notificationData.timestamp
-      }
-      const bc = new BroadcastChannel('notification-channel');
-      bc.postMessage(pushData);
-      bc.close();
-    })
-    .catch((error) => {
-      console.error('Service Worker: Failed to show notification:', error);
-    })
+    self.registration.showNotification(title, options)
+      .then(() => {
+        console.log('Service Worker: Notification shown successfully.');
+        // 알림이 성공적으로 표시되면, BroadcastChannel을 통해 메인 스레드에 알립니다.
+        const bc = new BroadcastChannel('notification-channel');
+        bc.postMessage({ type: 'NOTIFICATION_DISPLAYED', notification: options });
+        bc.close(); // 채널 사용 후 닫기
+      })
+      .catch(err => {
+        // 알림 표시 중 오류가 발생하면 콘솔에 에러를 로깅하고, 메인 스레드에 에러를 전달합니다.
+        console.error('Service Worker: Failed to show notification. Error:', err);
+        const bc = new BroadcastChannel('notification-channel');
+        bc.postMessage({ type: 'NOTIFICATION_ERROR', error: err.message });
+        bc.close(); // 채널 사용 후 닫기
+      })
   );
 });
 
-// 알림 클릭 이벤트 처리
+/**
+ * @event notificationclick
+ * @description 사용자가 시스템 알림을 클릭했을 때 발생하는 이벤트 리스너입니다.
+ *              알림을 닫고, 메인 스레드에 클릭 이벤트를 전달하며, 관련 URL로 이동합니다.
+ */
 self.addEventListener('notificationclick', (event) => {
-  console.log('[sw.js] Notification clicked', event);
-  
-  const notification = event.notification;
-  const action = event.action;
-  const notificationData = notification.data || {};
-  
-  // 알림 닫기
+  const notification = event.notification; // 클릭된 알림 객체
+  const action = event.action; // 클릭된 액션 버튼의 ID (없으면 빈 문자열)
+
+  // 알림을 닫습니다.
   notification.close();
 
-  // 메인 스레드에 알림 클릭 이벤트 전송
-  const clickData = {
-    type: 'NOTIFICATION_CLICKED',
-    action: action,
-    notificationId: notificationData.notificationId,
-    title: notification.title,
-    body: notification.body,
-    url: notificationData.url,
-    timestamp: notificationData.timestamp,
-    category: notificationData.category,
-    priority: notificationData.priority
-  };
+  // BroadcastChannel을 통해 메인 스레드에 알림 클릭 이벤트를 전달합니다.
+  // const bc = new BroadcastChannel('notification-channel');
+  // bc.postMessage({ type: 'NOTIFICATION_CLICKED', action, notification });
+  // bc.close(); // 채널 사용 후 닫기
 
-  console.log('[sw.js] Sending click event to main thread:', clickData);
-  const bc = new BroadcastChannel('notification-channel');
-  bc.postMessage(clickData);
-  bc.close();
+  // 'dismiss' 액션 버튼이 클릭된 경우, 추가적인 페이지 이동 없이 함수를 종료합니다.
+  if (action === 'dismiss') {
+    return;
+  }
 
+  // 알림 데이터에 포함된 URL 또는 기본 루트 경로로 이동할 URL을 결정합니다.
+  const urlToOpen = notification.data.url || '/';
+
+  // `event.waitUntil`을 사용하여 서비스 워커가 URL 이동 작업을 완료할 때까지 활성 상태를 유지하도록 합니다.
   event.waitUntil(
-    clients.matchAll({ type: 'window', includeUncontrolled: true })
-      .then((clientList) => {
-        console.log('[sw.js] Found clients:', clientList.length);
-        // 모든 클라이언트에 알림 클릭 이벤트 전송
-        clientList.forEach(client => {
-          console.log('[sw.js] Posting message to client:', client.url);
-          client.postMessage(clickData);
-        });
-
-        // 액션별 처리
-        if (action === 'dismiss') {
-          console.log('Service Worker: Notification dismissed');
-          return;
+    clients.matchAll({
+      type: 'window', // 'window' 타입의 클라이언트(탭 또는 창)를 찾습니다.
+      includeUncontrolled: true // 서비스 워커가 제어하지 않는 클라이언트도 포함합니다.
+    }).then((clientList) => {
+      // 1. 이미 해당 URL을 가진 탭이 열려있는지 확인하고, 있다면 그 탭에 포커스를 줍니다.
+      for (const client of clientList) {
+        // 클라이언트 URL과 타겟 URL의 경로를 정규화하여 비교합니다. (예: https://example.com/path/ 와 https://example.com/path 비교)
+        const clientUrl = new URL(client.url).pathname;
+        const targetUrl = new URL(urlToOpen, self.location.origin).pathname;
+        if (clientUrl === targetUrl && 'focus' in client) {
+          return client.focus(); // 기존 탭에 포커스
         }
-
-        // 'view' 액션이거나 기본 클릭
-        const urlToOpen = notificationData.url || '/';
-        
-        // 이미 열린 탭이 있는지 확인
-        for (const client of clientList) {
-          if (client.url.includes(urlToOpen) && 'focus' in client) {
-            console.log('Service Worker: Focusing existing tab');
-            return client.focus();
-          }
-        }
-        
-        // 새 탭 열기
-        if (clients.openWindow) {
-          console.log('Service Worker: Opening new tab:', urlToOpen);
-          return clients.openWindow(urlToOpen);
-        }
-      })
-      .catch((error) => {
-        console.error('Service Worker: Error handling notification click:', error);
-      })
+      }
+      // 2. 열려있는 탭이 없다면, 새 창(탭)으로 URL을 엽니다.
+      if (clients.openWindow) {
+        return clients.openWindow(urlToOpen); // 새 탭 열기
+      }
+    })
   );
 });
-
-// 메시지 이벤트 처리 (메인 스레드와 통신)
-// self.addEventListener('message', (event) => {
-//   console.log('Service Worker: Message received:', event.data);
-  
-//   const { type, data } = event.data || {};
-  
-//   switch (type) {
-//     case 'SKIP_WAITING':
-//       console.log('Service Worker: Skipping waiting...');
-//       self.skipWaiting();
-//       break;
-      
-//     case 'GET_NOTIFICATION_PERMISSION':
-//       // 알림 권한 상태 확인 요청
-//       event.ports[0]?.postMessage({
-//         type: 'NOTIFICATION_PERMISSION_STATUS',
-//         permission: Notification.permission
-//       });
-//       break;
-      
-//     case 'SEND_TEST_NOTIFICATION':
-//       // 테스트 알림 전송 요청
-//       const testNotificationData = {
-//         title: data?.title || '테스트 알림',
-//         body: data?.body || '이것은 테스트 알림입니다.',
-//         icon: data?.icon || '/vite.svg',
-//         tag: `test-${Date.now()}`,
-//         data: {
-//           url: data?.url || '/',
-//           timestamp: Date.now(),
-//           notificationId: `test-${Date.now()}`,
-//           category: 'test',
-//           priority: 'normal'
-//         }
-//       };
-      
-//       self.registration.showNotification(testNotificationData.title, testNotificationData)
-//         .then(() => {
-//           console.log('Service Worker: Test notification sent');
-//           event.ports[0]?.postMessage({
-//             type: 'TEST_NOTIFICATION_SENT',
-//             success: true
-//           });
-//         })
-//         .catch((error) => {
-//           console.error('Service Worker: Failed to send test notification:', error);
-//           event.ports[0]?.postMessage({
-//             type: 'TEST_NOTIFICATION_SENT',
-//             success: false,
-//             error: error.message
-//           });
-//         });
-//       break;
-      
-//     case 'CLEAR_ALL_NOTIFICATIONS':
-//       // 모든 알림 클리어 요청
-//       self.registration.getNotifications()
-//         .then((notifications) => {
-//           notifications.forEach(notification => notification.close());
-//           console.log('Service Worker: All notifications cleared');
-//           event.ports[0]?.postMessage({
-//             type: 'NOTIFICATIONS_CLEARED',
-//             count: notifications.length
-//           });
-//         });
-//       break;
-      
-//     case 'GET_NOTIFICATION_COUNT':
-//       // 현재 알림 개수 조회 요청
-//       self.registration.getNotifications()
-//         .then((notifications) => {
-//           event.ports[0]?.postMessage({
-//             type: 'NOTIFICATION_COUNT',
-//             count: notifications.length
-//           });
-//         });
-//       break;
-      
-//     default:
-//       console.log('Service Worker: Unknown message type:', type);
-//   }
-// });
-
-// 백그라운드 동기화 (선택사항)
-// self.addEventListener('sync', (event) => {
-//   console.log('Service Worker: Background sync');
-//   if (event.tag === 'background-sync') {
-//     event.waitUntil(doBackgroundSync());
-//   }
-// });
-
-// function doBackgroundSync() {
-//   // 백그라운드에서 실행할 작업
-//   return Promise.resolve();
-// }
