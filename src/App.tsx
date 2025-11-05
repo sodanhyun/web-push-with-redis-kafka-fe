@@ -7,6 +7,7 @@ import {
 import { registerPushSubscription } from './api/pushApi';
 
 import WebSocketTest from './components/WebSocketTest';
+import CrawlingScheduler from './components/CrawlingScheduler';
 
 /**
  * @function App
@@ -184,6 +185,11 @@ function App() {
         <div className="demo-section">
           {/* WebSocketTest 컴포넌트에 현재 사용자 ID를 전달합니다. */}
           <WebSocketTest userId={userId} />
+        </div>
+
+        {/* 크롤링 스케줄러 섹션 */}
+        <div className="demo-section">
+          <CrawlingScheduler userId={userId} />
         </div>
       </main>
 

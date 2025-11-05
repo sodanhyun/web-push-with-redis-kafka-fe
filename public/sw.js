@@ -26,7 +26,8 @@ self.addEventListener('install', (event) => {
 /**
  * @event fetch
  * @description 네트워크 요청이 발생할 때마다 가로채는 이벤트입니다.
- *              캐시 우선 전략을 사용하여 응답합니다.
+ *              `index.html`과 같은 내비게이션 요청에는 네트워크 우선 전략을,
+ *              그 외의 정적 자산에는 캐시 우선 전략을 사용합니다.
  */
 self.addEventListener('fetch', (event) => {
   // API 요청이나 WebSocket 관련 요청은 캐시하지 않습니다.
@@ -34,6 +35,21 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
+  // 내비게이션 요청 (예: 페이지 로드, index.html)에 대해서는 네트워크 우선 전략을 사용합니다.
+  // 이는 개발 중 변경 사항이 즉시 반영되도록 하고, PWA 업데이트를 보장합니다.
+  // 네트워크 실패 시에만 캐시된 index.html을 반환하여 오프라인 지원을 유지합니다.
+  if (event.request.mode === 'navigate' || event.request.destination === 'document') {
+    event.respondWith(
+      fetch(event.request).catch(() => {
+        console.log('Service Worker: Network failed for navigation, falling back to cache for /index.html');
+        return caches.match('/index.html'); // 네트워크 실패 시 캐시된 index.html 반환
+      })
+    );
+    return;
+  }
+
+  // 그 외의 요청 (JS, CSS, 이미지 등)에 대해서는 캐시 우선 전략을 사용합니다.
+  // 캐시에 있으면 캐시된 응답을 반환하고, 없으면 네트워크 요청 후 캐시에 저장합니다.
   event.respondWith(
     caches.match(event.request)
       .then((response) => {
@@ -46,6 +62,7 @@ self.addEventListener('fetch', (event) => {
         return fetch(event.request).then(
           (networkResponse) => {
             // 유효한 응답을 받으면 캐시에 저장하고 반환합니다.
+            // 응답이 없거나, 상태 코드가 200이 아니거나, 응답 타입이 'basic'이 아니면 캐시하지 않습니다.
             if (!networkResponse || networkResponse.status !== 200 || networkResponse.type !== 'basic') {
               return networkResponse;
             }
