@@ -1,208 +1,140 @@
-🚀 웹 푸시 알림 데모 (프론트엔드)
+# 🚀 웹 푸시 및 실시간 알림 프론트엔드
 
-이 프로젝트는 React, TypeScript, Vite로 구축된 프론트엔드 애플리케이션으로, 웹 푸시 알림 및 WebSocket 통신 기능을
-시연합니다.
+이 프로젝트는 React, TypeScript, Vite로 구축된 프론트엔드 애플리케이션으로, 웹 푸시 알림 및 WebSocket을 이용한 실시간 통신 기능을 시연합니다.
 
-✨ 주요 기능
+## ✨ 주요 기능
 
-- 서비스 워커 기반 푸시 알림: 백그라운드에서 푸시 이벤트를 처리합니다.
-- 실시간 알림 UI: 다양한 이벤트에 대한 토스트 알림을 표시합니다.
-- 포괄적인 푸시 알림 시스템: 권한 요청, 구독 및 토큰 전송을 관리합니다.
-- WebSocket 통신: 크롤링 진행 상황을 위한 백엔드와의 실시간 데이터 교환.
-- HTTPS 로컬 개발 환경: 보안 개발을 위한 자동 SSL 인증서 생성.
-- Vite 프록시 설정: 백엔드 API 통신을 위한 CORS 문제 해결.
+*   **푸시 알림**: 서비스 워커를 통해 백그라운드에서도 푸시 이벤트를 수신하고 시스템 알림을 표시합니다.
+*   **실시간 통신**: WebSocket을 사용하여 백엔드로부터 크롤링 진행 상황과 같은 실시간 데이터를 수신하고 화면에 표시합니다.
+*   **토스트 UI**: 푸시 알림 수신, 클릭 등 다양한 이벤트에 대한 인앱 토스트 메시지를 제공합니다.
+*   **HTTPS 개발 환경**: `mkcert`를 활용하여 로컬에서도 신뢰할 수 있는 HTTPS 환경을 자동으로 구성합니다.
 
-🛠️ 기술 스택
+## 🛠️ 기술 스택
 
-- 프론트엔드: React 19, TypeScript, Vite
-- 스타일링: CSS3
-- HTTP 클라이언트: Axios
-- 푸시 알림: Service Worker, Push API, Notification API
-- 실시간 통신: WebSockets
-- 개발 도구: HTTPS, Proxy, Hot Reload
+*   **프레임워크**: React 19, Vite
+*   **언어**: TypeScript
+*   **HTTP 클라이언트**: Axios
+*   **실시간 통신**: WebSocket API
+*   **푸시 기술**: Service Worker, Push API, Notification API
+*   **스타일링**: CSS
 
-📦 설치 및 실행
+## ⚡️ PWA (Progressive Web App) 기능
 
-이 프로젝트를 실행하려면 Node.js (v18 이상) 및 npm이 설치되어 있어야 합니다.
+이 애플리케이션은 PWA로 구현되어 다음과 같은 추가적인 기능을 제공합니다.
 
-1. 의존성 설치
+*   **앱 설치**: 데스크톱이나 모바일 홈 화면에 앱을 설치하여 네이티브 앱처럼 사용할 수 있습니다.
+*   **오프라인 지원**: 앱의 핵심 자원(App Shell)이 캐싱되어 오프라인 상태에서도 앱을 로드하고 기본 기능을 사용할 수 있습니다.
+*   **백그라운드 알림**: 서비스 워커를 통해 앱이 완전히 종료된 상태에서도 푸시 알림을 수신할 수 있습니다.
 
-프론트엔드 프로젝트 디렉토리로 이동하여 필요한 패키지를 설치합니다:
-
-1 cd web-push-with-redis-kafka-fe
-2 npm install
-
-2. HTTPS 인증서 생성 (푸시 알림에 필수)
-
-웹 푸시 알림 및 서비스 워커는 보안 컨텍스트(HTTPS)를 필요로 합니다.
-
-🎯 권장: mkcert (신뢰할 수 있는 인증서)
-
-mkcert는 브라우저 경고를 피하면서 로컬에서 신뢰할 수 있는 개발 인증서를 생성합니다.
-
-1 # mkcert 설치 (아직 설치되지 않은 경우)
-2 # Windows: choco install mkcert (Chocolatey 사용) 또는 GitHub에서 수동 다운로드
-3 # macOS: brew install mkcert
-4 # Linux: sudo apt install libnss3-tools (그 후 GitHub에서 수동 설치)
-5
-6 # 인증서 생성
-7 npm run setup:https:mkcert
-
-mkcert 재설치 및 신뢰 루트 인증서 재등록
-
-mkcert -uninstall로 기존 루트 인증서 제거
-
-mkcert -install로 로컬 신뢰 루트 인증서 재설치
-
-mkcert -cert-file localhost.pem -key-file localhost-key.pem localhost 127.0.0.1 ::1
-
-3. 환경 변수
-
-프로젝트 루트 (web-push-with-redis-kafka-fe/.env)에 .env 파일을 생성하고 다음 내용을 추가합니다:
-
-1 # API 설정
-2 VITE_API_URL=/api # 백엔드 API 기본 URL
-3 VITE_WS_URL=ws://localhost:8080/ws # 백엔드 WebSocket 기본 URL
-4
-5 # VAPID 공개 키 (백엔드 설정에서 가져옴)
-6 VITE_APP_VAPID_PUBLIC_KEY=YOUR_VAPID_PUBLIC_KEY_HERE
-
-공개키 생성성
-npx web-push generate-vapid-keys
-
-참고: YOUR_VAPID_PUBLIC_KEY_HERE를 백엔드 애플리케이션에서 생성된 실제 VAPID 공개 키로 대체하십시오.
-
-4. 개발 서버 실행
-1 npm run dev
-
-5. 브라우저에서 접속
-
-브라우저를 열고 https://localhost:5173으로 이동합니다.
-자체 서명 인증서를 사용하는 경우, 브라우저 경고를 우회하기 위해 "고급" -> "localhost로 진행 (안전하지 않음)"을
-클릭해야 할 수 있습니다.
-
-🎯 사용법
-
-1.  권한 요청: "권한 요청" 버튼을 클릭하여 알림 권한을 허용합니다.
-2.  푸시 구독: "푸시 알림 구독" 버튼을 클릭하여 브라우저를 푸시 알림에 등록합니다.
-3.  테스트 푸시 알림: 입력 필드와 "테스트 푸시 알림 보내기" 버튼을 사용하여 백엔드를 통해 테스트 알림을 보냅니다.
-4.  크롤링 시작: "크롤링 시작" 버튼을 클릭하여 백엔드에서 크롤링 프로세스를 시작하고 WebSocket을 통해 실시간 업데이트를
-    관찰합니다.
+> **🎨 아이콘 교체 안내**
+> 현재 PWA 아이콘은 임시로 `vite.svg` 파일을 사용하고 있습니다. 프로덕션 환경에서는 `public/manifest.webmanifest` 파일의 `icons` 경로와 실제 아이콘 파일들을 교체해야 합니다. 다양한 크기의 아이콘을 쉽게 생성하려면 [Favicon.io](https://favicon.io/)와 같은 온라인 도구를 사용하는 것을 권장합니다.
 
 ---
 
-📚 아키텍처 및 코드 설명
+## 📦 설치 및 실행
 
-이 섹션에서는 애플리케이션의 아키텍처, 주요 파일 및 기능에 대한 개요를 제공합니다.
+이 프로젝트를 실행하려면 **Node.js (v18 이상)** 및 **npm**이 필요합니다.
 
-1. 전체 아키텍처
+### 1. 저장소 클론 및 의존성 설치
 
-   1 ┌─────────────────┐ ┌─────────────────┐ ┌─────────────────┐
-   2 │ 프론트엔드 │ │ 서비스 워커 │ │ 백엔드 API │
-   3 │ (React 앱) │◄──►│ (public/sw.js)│◄──►│ (Spring Boot) │
-   4 └─────────────────┘ └─────────────────┘ └─────────────────┘
-   5 │ │ │
-   6 │ │ │
-   7 ▼ ▼ ▼
-   8 ┌─────────────────┐ ┌─────────────────┐ ┌─────────────────┐
-   9 │ 푸시 훅 │ │ 푸시 이벤트 │ │ 푸시 서비스 │
+```bash
+# 프론트엔드 프로젝트 디렉토리로 이동
+cd web-push-with-redis-kafka-fe
 
-10 │ (usePush) │ │ (WebPush) │ │ (VAPID/FCM) │
-11 └─────────────────┘ └─────────────────┘ └─────────────────┘
+# npm 패키지 설치
+npm install
+```
 
-프론트엔드(React 앱)는 푸시 알림을 위해 서비스 워커와 상호 작용하고, 다른 기능(예: 구독 등록, 크롤링 트리거)을 위해
-백엔드 API와 직접 상호 작용합니다. 서비스 워커는 백그라운드에서 푸시 이벤트를 처리하고 BroadcastChannel을 통해 메인
-애플리케이션 스레드와 통신합니다.
+### 2. 로컬 HTTPS 인증서 생성
 
-2. 주요 파일 및 패키지
+웹 푸시 및 서비스 워커는 보안 컨텍스트(HTTPS)에서만 동작하므로, 로컬 개발 환경에 HTTPS 설정이 필수입니다.
 
-src/App.tsx
+**`mkcert`를 사용한 자동 설정 (권장)**
 
-- 역할: 메인 애플리케이션 컴포넌트입니다. usePushNotification을 사용하여 푸시 알림 로직을 조정하고 WebSocketTest를 통해
-  WebSocket 통신을 통합합니다. 또한 서비스 워커로부터의 통신을 처리하여 토스트 알림을 표시합니다.
-- 주요 로직:
-  - 고유한 userId를 초기화합니다.
-  - usePushNotification 훅을 사용하여 푸시 알림 상태 및 작업을 관리합니다.
-  - 구독이 설정되면 푸시 구독 데이터를 백엔드로 전송하는 useEffect를 사용합니다.
-  - BroadcastChannel을 통해 서비스 워커로부터 메시지(예: NOTIFICATION_CLICKED, NOTIFICATION_DISPLAYED)를 수신하고
-    사용자 정의 window 이벤트를 디스패치하는 useEffect를 사용합니다.
-  - 푸시 구독 관리를 위한 SubscribeButton, WebSocket 데모를 위한 WebSocketTest, 토스트 알림을 위한
-    NotificationContainer를 렌더링합니다.
+`mkcert`는 로컬에서 브라우저가 신뢰하는 SSL 인증서를 쉽게 만들어주는 도구입니다.
 
-src/main.tsx
+```bash
+# 1. mkcert 설치 (아직 설치하지 않은 경우)
+# macOS: brew install mkcert
+# Windows (Chocolatey 사용): choco install mkcert
 
-- 역할: React 애플리케이션의 진입점입니다.
-- 주요 로직: react-dom/client의 createRoot를 사용하여 App 컴포넌트를 HTML root 요소에 렌더링합니다.
+# 2. 로컬 인증 기관(CA) 설정
+mkcert -install
 
-src/api/
+# 3. 인증서 생성 스크립트 실행
+npm run setup:https:mkcert
+```
 
-- 역할: 백엔드와 상호 작용하기 위한 API 클라이언트 모듈을 포함합니다.
-  - crawlingApi.ts: 백엔드에서 웹 크롤링을 트리거하는 기능을 제공합니다.
-  - pushApi.ts: 푸시 구독을 등록하고 백엔드로 테스트 푸시 알림을 보내는 기능을 제공합니다.
-- 주요 로직:
-  - HTTP 요청에 axios를 사용합니다.
-  - pushApi.ts는 환경 변수에서 baseURL을 가져와 axios 인스턴스를 구성하고 Content-Type 헤더를 설정합니다.
-  - PushSubscriptionData 및 PushTokenResponse에 대한 인터페이스를 정의합니다.
+위 과정을 완료하면 프로젝트 루트에 `certs` 디렉토리가 생성되고 그 안에 `localhost-key.pem`과 `localhost.pem` 파일이 저장됩니다.
 
-src/components/
+### 3. 환경 변수 설정
 
-- 역할: 재사용 가능한 UI 컴포넌트입니다.
-  - NotificationToast.tsx:
-    - NotificationToast: 제목, 메시지, 유형(정보, 성공, 경고, 오류) 및 자동 해제 기간이 있는 단일 해제 가능한
-      토스트 알림을 표시합니다.
-    - NotificationContainer: NotificationToast 컴포넌트 목록을 관리합니다. App.tsx에서 디스패치된 사용자 정의
-      window 이벤트(notification-clicked, notification-displayed)를 수신하고(이는 서비스 워커로부터 수신됨) 새
-      토스트 알림을 UI에 추가합니다.
-  - WebSocketTest.tsx: 실시간 WebSocket 통신을 시연합니다.
-    - 백엔드 WebSocket 엔드포인트(/ws/test/{userId})에 연결합니다.
-    - WebSocket을 통해 수신된 실시간 크롤링 진행 상황 및 데이터를 표시합니다.
-    - 크롤링을 시작하고 테스트 푸시 알림을 보내는 버튼을 제공합니다.
+프로젝트 루트(`web-push-with-redis-kafka-fe`)에 `.env` 파일을 생성하고 백엔드 VAPID 키를 설정합니다.
 
-src/hooks/usePushNotification.ts
+```.env
+# 백엔드에서 생성된 VAPID 공개 키를 입력하세요.
+VITE_APP_VAPID_PUBLIC_KEY=YOUR_VAPID_PUBLIC_KEY_HERE
+```
 
-- 역할: 웹 푸시 알림을 위한 모든 클라이언트 측 로직을 캡슐화하는 사용자 정의 React 훅입니다.
-- 주요 로직:
-  - isSupported, permission, isSubscribed, subscription, error 상태를 관리합니다.
-  - registerServiceWorker(): public/sw.js 서비스 워커를 등록합니다.
-  - checkSupport(): 브라우저가 웹 푸시를 지원하는지 확인합니다.
-  - requestPermission(): 사용자에게 알림 권한을 요청합니다.
-  - subscribe(): VAPID 공개 키를 사용하여 브라우저를 푸시 서비스에 구독합니다.
-  - unsubscribe(): 푸시 서비스에서 구독을 해제합니다.
-  - 초기화를 위한 useEffect: 지원 여부를 확인하고, 서비스 워커를 등록하고, 현재 권한을 확인하고, 기존 푸시 구독을
-    검색합니다.
+> **VAPID 키란?**
+> 푸시 서버에 "누가" 푸시 메시지를 보냈는지 식별하기 위한 보안 키입니다. 백엔드 프로젝트의 `README.md`를 참조하여 키를 생성하고, 여기서 생성된 **공개 키**를 위 변수에 붙여넣으세요.
 
-public/sw.js (서비스 워커)
+### 4. 개발 서버 실행
 
-- 역할: 메인 애플리케이션 스레드와 별도로 백그라운드에서 실행됩니다. 애플리케이션이 닫혀 있을 때도 푸시 이벤트를
-  처리하는 데 중요합니다.
-- 주요 로직:
-  - self.addEventListener('push', ...):
-    - 푸시 서비스(예: FCM)로부터 푸시 메시지를 수신합니다.
-    - 들어오는 event.data를 파싱합니다(JSON 및 일반 텍스트 모두 처리).
-    - 알림 옵션(제목, 본문, 아이콘, 배지, 태그 등)을 구성합니다.
-    - self.registration.showNotification()을 사용하여 시스템 알림을 표시합니다.
-    - BroadcastChannel을 통해 메인 애플리케이션 스레드와 통신합니다(NOTIFICATION_DISPLAYED, NOTIFICATION_ERROR).
-  - self.addEventListener('notificationclick', ...):
-    - 시스템 알림에 대한 사용자 클릭을 처리합니다.
-    - 알림을 닫습니다.
-    - BroadcastChannel을 통해 메인 애플리케이션 스레드와 통신합니다(NOTIFICATION_CLICKED).
-    - 알림 데이터에 지정된 URL로 기존 탭에 포커스를 맞추거나 새 탭을 엽니다.
+```bash
+npm run dev
+```
 
-3. 사용된 기술
+서버가 실행되면 브라우저에서 **`https://localhost:5173`** 주소로 접속하세요.
 
-- React 19: 사용자 인터페이스 구축을 위한 JavaScript 라이브러리.
-- TypeScript: 일반 JavaScript로 컴파일되는 JavaScript의 타입이 지정된 상위 집합. 코드 품질 및 유지 관리성을
-  향상시킵니다.
-- Vite: 최신 웹 프로젝트를 위한 번개처럼 빠른 개발 경험을 제공하는 빠른 빌드 도구.
-- Axios: 브라우저 및 Node.js를 위한 Promise 기반 HTTP 클라이언트.
-- Service Worker: 웹 페이지와 별도로 백그라운드에서 브라우저가 실행하는 스크립트로, 푸시 알림과 같이 웹 페이지나 사용자
-  상호 작용이 필요 없는 기능의 문을 엽니다.
-- Push API: 웹 애플리케이션이 웹 앱이 활성화되어 있지 않아도 서버에서 웹 브라우저로 푸시되는 메시지를 수신할 수 있도록
-  합니다.
-- Notification API: 웹 페이지가 사용자에게 시스템 알림 표시를 제어할 수 있도록 합니다.
-- WebSockets: 단일 TCP 연결을 통해 전이중 통신 채널을 제공하여 실시간 대화형 통신을 가능하게 하는 통신 프로토콜.
-- VAPID (Voluntary Application Server Identification): 푸시 서비스에 애플리케이션 서버를 식별하기 위한 표준. 공개 및
-  개인 키 쌍을 사용합니다.
-- `mkcert`: 로컬에서 신뢰할 수 있는 개발 인증서를 만드는 간단한 도구.
-- `BroadcastChannel` API: 브라우징 컨텍스트(예: 페이지와 서비스 워커, 또는 동일한 출처의 여러 탭/창) 간의 기본 통신을
-  허용합니다.
+## 🎯 사용법
+
+1.  **권한 요청**: "권한 요청" 버튼을 클릭하여 브라우저 알림 권한을 허용합니다.
+2.  **푸시 구독**: "푸시 알림 구독" 버튼을 클릭하여 이 브라우저를 푸시 서비스에 등록합니다. 이 정보는 백엔드 서버에 저장됩니다.
+3.  **테스트 알림**: "테스트 푸시 알림 보내기" 버튼으로 백엔드를 통해 테스트 알림을 전송할 수 있습니다.
+4.  **크롤링 시작**: "크롤링 시작" 버튼을 누르면 백엔드에서 크롤링 프로세스가 시작되며, WebSocket을 통해 실시간 진행 상황을 확인할 수 있습니다.
+
+---
+
+## 📚 아키텍처 및 코드 설명
+
+### 1. 전체 구조
+
+이 애플리케이션은 **메인 앱(React)**과 **서비스 워커** 두 가지 주요 부분으로 나뉩니다.
+
+*   **메인 앱**: 사용자가 보는 UI를 렌더링하고, 버튼 클릭과 같은 상호작용을 처리하며, 백엔드 API와 직접 통신합니다.
+*   **서비스 워커 (`public/sw.js`)**: 브라우저 백그라운드에서 실행되는 스크립트입니다. 앱이 꺼져 있어도 푸시 알림을 수신하고, 시스템 알림을 표시하는 역할을 담당합니다.
+
+이 둘은 `BroadcastChannel` API를 통해 서로 메시지를 주고받습니다.
+
+### 2. 주요 파일 및 디렉토리
+
+#### `public/sw.js` (서비스 워커)
+*   **역할**: 백그라운드에서 푸시 이벤트를 수신하고 시스템 알림을 생성합니다.
+*   **주요 로직**:
+    *   `push` 이벤트 리스너: 백엔드로부터 푸시 메시지를 받으면 `self.registration.showNotification()`을 호출하여 화면에 시스템 알림을 표시합니다.
+    *   `notificationclick` 이벤트 리스너: 사용자가 알림을 클릭했을 때 지정된 URL을 열거나 앱 창에 포커스를 맞춥니다.
+
+#### `src/hooks/usePushNotification.ts`
+*   **역할**: 웹 푸시 관련 모든 클라이언트 로직(지원 여부 확인, 권한 요청, 구독/구독 취소)을 캡슐화한 커스텀 훅입니다.
+*   **주요 로직**:
+    *   서비스 워커를 등록하고 브라우저의 푸시 기능 지원 여부를 확인합니다.
+    *   푸시 알림 권한 상태를 관리합니다.
+    *   VAPID 공개 키를 사용하여 브라우저를 푸시 서비스에 구독시키고, 생성된 `PushSubscription` 객체를 반환합니다.
+
+#### `src/App.tsx`
+*   **역할**: 애플리케이션의 메인 컴포넌트입니다.
+*   **주요 로직**:
+    *   `usePushNotification` 훅을 사용하여 푸시 관련 상태와 기능을 관리합니다.
+    *   생성된 푸시 구독 정보를 `pushApi`를 통해 백엔드로 전송합니다.
+    *   `WebSocketTest` 컴포넌트를 렌더링하여 실시간 통신 기능을 통합합니다.
+    *   `NotificationContainer`를 통해 인앱 토스트 알림을 표시합니다.
+
+#### `src/components/`
+*   **`WebSocketTest.tsx`**: 실시간 WebSocket 통신을 시연하는 컴포넌트입니다. 백엔드에 연결하여 크롤링 진행 데이터를 받아 화면에 표시합니다.
+*   **`NotificationToast.tsx`**: 인앱 토스트 알림 UI와 상태 관리를 담당합니다. 서비스 워커나 다른 컴포넌트로부터 `window` 이벤트를 받아 새 토스트를 표시합니다.
+
+#### `src/api/`
+*   **역할**: `axios`를 사용하여 백엔드 API와 통신하는 모듈입니다.
+*   **`pushApi.ts`**: 푸시 구독 정보를 백엔드에 등록하고, 테스트 알림 전송을 요청합니다.
+*   **`crawlingApi.ts`**: 백엔드의 크롤링 프로세스 시작을 요청합니다.

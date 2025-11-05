@@ -39,6 +39,10 @@ const WebSocketTest: React.FC<WebSocketTestProps> = ({ userId }) => {
     const [showCompletionMessage, setShowCompletionMessage] = useState(false);
     // 테스트 푸시 알림으로 보낼 메시지 내용을 저장하는 상태입니다.
     const [testPushMessage, setTestPushMessage] = useState("테스트 푸시 알림입니다.");
+    
+    const VITE_WS_URL = import.meta.env.VITE_WS_URL;
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const wsUrl = `${protocol}//${window.location.host}${VITE_WS_URL}/${userId}`;
 
     /**
      * @useEffect
@@ -55,8 +59,7 @@ const WebSocketTest: React.FC<WebSocketTestProps> = ({ userId }) => {
         if (!userId) return;
 
         // 백엔드 웹소켓 서버에 연결합니다.
-        // URL은 `ws://localhost:8080/ws/test/{userId}` 형식입니다.
-        const ws = new WebSocket(`ws://localhost:8080/ws/test/${userId}`);
+        const ws = new WebSocket(wsUrl);
 
         // 웹소켓 연결이 성공적으로 열렸을 때 실행됩니다.
         ws.onopen = () => {

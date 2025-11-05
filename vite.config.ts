@@ -75,11 +75,11 @@ export default defineConfig({
       //   rewrite: (path) => path.replace(/^\/push/, '/push'),
       // },
       // WebSocket 프록시 (실시간 알림용)
-      // '/ws': {
-      //   target: process.env.VITE_WS_URL || 'ws://localhost:3001',
-      //   ws: true,
-      //   changeOrigin: true,
-      // },
+      '/ws': {
+        target: 'ws://localhost:8080',
+        ws: true,
+        changeOrigin: true,
+      },
     },
   },
   // preview: {

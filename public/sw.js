@@ -1,6 +1,70 @@
 // sw.js
-// 이 파일은 웹 애플리케이션의 서비스 워커 스크립트입니다.
-// 푸시 알림 수신 및 클릭 처리, 그리고 메인 스레드와의 통신을 담당합니다.
+const CACHE_NAME = 'my-toy-app-cache-v1';
+const URLS_TO_CACHE = [
+  '/',
+  '/index.html',
+  '/manifest.webmanifest',
+  '/vite.svg'
+  // 빌드 시 생성되는 JS/CSS 파일들은 동적으로 추가되거나, 런타임에 캐싱됩니다.
+];
+
+/**
+ * @event install
+ * @description 서비스 워커가 설치될 때 발생하는 이벤트입니다.
+ *              앱 셸(핵심 자산)을 미리 캐싱하여 오프라인 지원을 준비합니다.
+ */
+self.addEventListener('install', (event) => {
+  event.waitUntil(
+    caches.open(CACHE_NAME)
+      .then((cache) => {
+        console.log('Service Worker: Caching app shell');
+        return cache.addAll(URLS_TO_CACHE);
+      })
+  );
+});
+
+/**
+ * @event fetch
+ * @description 네트워크 요청이 발생할 때마다 가로채는 이벤트입니다.
+ *              캐시 우선 전략을 사용하여 응답합니다.
+ */
+self.addEventListener('fetch', (event) => {
+  // API 요청이나 WebSocket 관련 요청은 캐시하지 않습니다.
+  if (event.request.url.includes('/api') || event.request.url.includes('/ws')) {
+    return;
+  }
+
+  event.respondWith(
+    caches.match(event.request)
+      .then((response) => {
+        // 1. 캐시에 응답이 있으면 캐시된 응답을 반환합니다.
+        if (response) {
+          return response;
+        }
+
+        // 2. 캐시에 없으면 네트워크로 요청을 보냅니다.
+        return fetch(event.request).then(
+          (networkResponse) => {
+            // 유효한 응답을 받으면 캐시에 저장하고 반환합니다.
+            if (!networkResponse || networkResponse.status !== 200 || networkResponse.type !== 'basic') {
+              return networkResponse;
+            }
+
+            const responseToCache = networkResponse.clone();
+            caches.open(CACHE_NAME)
+              .then((cache) => {
+                cache.put(event.request, responseToCache);
+              });
+
+            return networkResponse;
+          }
+        );
+      })
+  );
+});
+
+
+// --- 기존 푸시 알림 로직 ---
 
 /**
  * @event push
