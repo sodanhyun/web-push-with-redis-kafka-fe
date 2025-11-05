@@ -9,6 +9,7 @@ import { sendPushNotification } from '../api/pushApi'; // 테스트 푸시 알�
 interface CrawlingData {
     title: string; // 크롤링된 데이터의 제목
     content: string; // 크롤링된 데이터의 내용
+    status: string; // 크롤링 진행 상태 (예: "in_progress", "complete")
 }
 
 /**
@@ -68,12 +69,14 @@ const WebSocketTest: React.FC<WebSocketTestProps> = ({ userId }) => {
 
         // 웹소켓으로부터 메시지를 수신했을 때 실행됩니다.
         ws.onmessage = (event) => {
-            // 수신된 데이터를 JSON으로 파싱합니다.
-            const data = JSON.parse(event.data);
-            // 데이터의 `status`가 'complete'이면 크롤링이 완료된 것으로 간주합니다.
+            const data: CrawlingData = JSON.parse(event.data);
+            console.log("Received WebSocket message:", data);
+
             if (data.status === 'complete') {
                 setProgress(100); // 진행률을 100%로 설정
-            } else {
+                setIsCrawling(false); // 크롤링 중 상태 해제
+                setShowCompletionMessage(true); // 완료 메시지 표시
+            } else if (data.status === 'in_progress') {
                 // 일반 크롤링 데이터인 경우, 메시지 목록에 추가하고 진행률을 증가시킵니다.
                 setMessages(prevMessages => [...prevMessages, data]);
                 setProgress(prev => Math.min(prev + 10, 100)); // 진행률을 10%씩 증가시키되 100%를 초과하지 않도록 합니다.
@@ -178,8 +181,9 @@ const WebSocketTest: React.FC<WebSocketTestProps> = ({ userId }) => {
             <table className="crawling-table">
                 <thead>
                     <tr>
-                        <th style={{ width: '30%' }}>제목</th>
-                        <th>내용</th>
+                        <th style={{ width: '20%' }}>제목</th>
+                        <th style={{ width: '60%' }}>내용</th>
+                        <th style={{ width: '20%' }}>상태</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -188,6 +192,7 @@ const WebSocketTest: React.FC<WebSocketTestProps> = ({ userId }) => {
                         <tr key={index}>
                             <td>{msg.title}</td>
                             <td>{msg.content}</td>
+                            <td>{msg.status}</td>
                         </tr>
                     ))}
                 </tbody>
