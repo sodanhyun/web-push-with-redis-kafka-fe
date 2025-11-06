@@ -1,6 +1,8 @@
-import { useState, useEffect } from 'react'; // React 훅을 임포트합니다.
-import { startCrawling } from '../api/crawlingApi'; // 크롤링 시작 API를 임포트합니다.
-import { sendPushNotification } from '../api/pushApi'; // 테스트 푸시 알림 전송 API를 임포트합니다.
+import { useState, useEffect, useCallback } from 'react'; // React 훅을 임포트합니다.
+import { startCrawling } from '../../api/crawlingApi'; // 크롤링 시작 API를 임포트합니다.
+import { sendPushNotification } from '../../api/pushApi'; // 테스트 푸시 알림 전송 API를 임포트합니다.
+import useUserStore from '../../store/useUserStore';
+import useWebSocket from '../../hooks/useWebSocket';
 
 /**
  * @interface CrawlingData
@@ -13,15 +15,7 @@ interface CrawlingData {
 }
 
 /**
- * @interface WebSocketTestProps
- * @description WebSocketTest 컴포넌트의 props 타입을 정의합니다.
- */
-interface WebSocketTestProps {
-    userId: string; // 현재 로그인한 사용자의 ID
-}
-
-/**
- * @function WebSocketTest
+ * @function CrawlingTable
  * @description 웹소켓 통신을 통해 실시간 크롤링 진행 상황을 표시하고,
  *              테스트 푸시 알림을 전송하는 기능을 제공하는 React 함수형 컴포넌트입니다.
  *
@@ -29,7 +23,9 @@ interface WebSocketTestProps {
  * - 크롤링 진행률을 프로그레스 바와 함께 표시합니다.
  * - 크롤링 시작 버튼과 테스트 푸시 알림 전송 버튼을 제공합니다.
  */
-const WebSocketTest: React.FC<WebSocketTestProps> = ({ userId }) => {
+const CrawlingTable: React.FC = () => {
+    const userId = useUserStore((state) => state.userId);
+
     // 웹소켓을 통해 수신된 크롤링 메시지들을 저장하는 상태입니다.
     const [messages, setMessages] = useState<CrawlingData[]>([]);
     // 크롤링 진행률을 나타내는 상태 (0-100%).
@@ -40,35 +36,9 @@ const WebSocketTest: React.FC<WebSocketTestProps> = ({ userId }) => {
     const [showCompletionMessage, setShowCompletionMessage] = useState(false);
     // 테스트 푸시 알림으로 보낼 메시지 내용을 저장하는 상태입니다.
     const [testPushMessage, setTestPushMessage] = useState("테스트 푸시 알림입니다.");
-    
-    const VITE_WS_URL = import.meta.env.VITE_WS_URL;
-    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const wsUrl = `${protocol}//${window.location.host}${VITE_WS_URL}/${userId}`;
 
-    /**
-     * @useEffect
-     * @description 컴포넌트 마운트 시 웹소켓 연결을 설정하고, 언마운트 시 연결을 해제합니다.
-     *
-     * - `userId`가 유효할 때만 웹소켓 연결을 시도합니다.
-     * - 웹소켓 연결이 열리면 콘솔에 메시지를 로깅합니다.
-     * - 웹소켓으로부터 메시지를 수신하면 JSON 파싱 후 `messages` 상태를 업데이트하고 `progress`를 증가시킵니다.
-     * - 크롤링 완료 메시지(`status: 'complete'`)를 받으면 `progress`를 100%로 설정합니다.
-     * - 웹소켓 연결이 닫히면 콘솔에 메시지를 로깅합니다.
-     */
-    useEffect(() => {
-        // userId가 없으면 웹소켓 연결을 시도하지 않습니다.
-        if (!userId) return;
-
-        // 백엔드 웹소켓 서버에 연결합니다.
-        const ws = new WebSocket(wsUrl);
-
-        // 웹소켓 연결이 성공적으로 열렸을 때 실행됩니다.
-        ws.onopen = () => {
-            console.log(`WebSocket connected for user: ${userId}`);
-        };
-
-        // 웹소켓으로부터 메시지를 수신했을 때 실행됩니다.
-        ws.onmessage = (event) => {
+    const { isConnected, sendMessage, lastMessage, error } = useWebSocket({
+        onMessage: useCallback((event: MessageEvent) => {
             const data: CrawlingData = JSON.parse(event.data);
             console.log("Received WebSocket message:", data);
 
@@ -77,22 +47,37 @@ const WebSocketTest: React.FC<WebSocketTestProps> = ({ userId }) => {
                 setIsCrawling(false); // 크롤링 중 상태 해제
                 setShowCompletionMessage(true); // 완료 메시지 표시
             } else if (data.status === 'in_progress') {
-                // 일반 크롤링 데이터인 경우, 메시지 목록에 추가하고 진행률을 증가시킵니다.
+                // 일반 크롤링 데이터인 경우, 메시지 목록에 추가하고 진행률을 증가시킵니다。
                 setMessages(prevMessages => [...prevMessages, data]);
-                setProgress(prev => Math.min(prev + 10, 100)); // 진행률을 10%씩 증가시키되 100%를 초과하지 않도록 합니다.
+                setProgress(prev => Math.min(prev + 10, 100)); // 진행률을 10%씩 증가시키되 100%를 초과하지 않도록 합니다。
             }
-        };
+        }, []),
+        onOpen: () => console.log(`WebSocket connected for user: ${userId}`),
+        onClose: () => console.log('WebSocket disconnected'),
+        onError: (e) => console.error('WebSocket error:', e),
+    });
 
-        // 웹소켓 연결이 닫혔을 때 실행됩니다.
-        ws.onclose = () => {
-            console.log('WebSocket disconnected');
-        };
+    // 기존 useEffect는 제거하고 useWebSocket 훅의 lastMessage를 통해 메시지 처리
+    useEffect(() => {
+        if (lastMessage) {
+            // lastMessage가 변경될 때마다 handleWebSocketMessage가 호출되도록 useWebSocket 훅에서 처리
+            // 여기서는 추가적인 로직이 필요하면 구현
+        }
+    }, [lastMessage]);
 
-        // 컴포넌트 언마운트 시 웹소켓 연결을 닫습니다.
-        return () => {
-            ws.close();
-        };
-    }, [userId]); // userId가 변경될 때마다 이 효과를 재실행합니다.
+    /**
+     * @useEffect
+     * @description `progress` 상태가 100%가 되면 크롤링 완료 상태를 처리합니다.
+     *
+     * - `isCrawling`을 false로 설정하여 크롤링 중 상태를 해제합니다.
+     * - `showCompletionMessage`를 true로 설정하여 완료 메시지를 표시합니다.
+     */
+    useEffect(() => {
+        if (progress === 100) {
+            setIsCrawling(false); // 크롤링 중 상태 해제
+            setShowCompletionMessage(true); // 완료 메시지 표시
+        }
+    }, [progress]); // progress가 변경될 때마다 이 효과를 재실행합니다.
 
     /**
      * @async
@@ -110,7 +95,7 @@ const WebSocketTest: React.FC<WebSocketTestProps> = ({ userId }) => {
         setIsCrawling(true); // 크롤링 시작 상태로 설정
         await startCrawling(userId); // 크롤링 API 호출
     };
-
+    
     /**
      * @async
      * @function handleSendTestPushNotification
@@ -133,20 +118,6 @@ const WebSocketTest: React.FC<WebSocketTestProps> = ({ userId }) => {
         }
     };
 
-    /**
-     * @useEffect
-     * @description `progress` 상태가 100%가 되면 크롤링 완료 상태를 처리합니다.
-     *
-     * - `isCrawling`을 false로 설정하여 크롤링 중 상태를 해제합니다.
-     * - `showCompletionMessage`를 true로 설정하여 완료 메시지를 표시합니다.
-     */
-    useEffect(() => {
-        if (progress === 100) {
-            setIsCrawling(false); // 크롤링 중 상태 해제
-            setShowCompletionMessage(true); // 완료 메시지 표시
-        }
-    }, [progress]); // progress가 변경될 때마다 이 효과를 재실행합니다.
-
     return (
         <div className="crawling-test-container">
             <h2>WebSocket Crawling Test</h2>
@@ -165,9 +136,10 @@ const WebSocketTest: React.FC<WebSocketTestProps> = ({ userId }) => {
                 </button>
             </div>
             {/* 크롤링 시작 버튼 */}
-            <button onClick={handleStartCrawling} disabled={isCrawling} className="crawling-btn">
+            <button onClick={handleStartCrawling} disabled={isCrawling || !isConnected} className="crawling-btn">
                 {isCrawling ? '크롤링 중...' : '크롤링 시작'}
             </button>
+            {!isConnected && <p style={{ color: 'red' }}>WebSocket 연결 끊김. 재연결 시도 중...</p>}
             {/* 크롤링 진행률 표시 */}
             {(isCrawling || showCompletionMessage) && (
                 <div className="progress-container">
@@ -201,4 +173,4 @@ const WebSocketTest: React.FC<WebSocketTestProps> = ({ userId }) => {
     );
 };
 
-export default WebSocketTest;
+export default CrawlingTable;

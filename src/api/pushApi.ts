@@ -1,20 +1,11 @@
-import axios from 'axios'; // HTTP 요청을 위한 axios 라이브러리를 임포트합니다.
+import httpClient from './httpClient'; // HTTP 요청을 위한 httpClient를 임포트합니다.
 
 /**
- * @description 푸시 알림 관련 API 요청을 위한 Axios 인스턴스를 생성합니다.
- *
- * - `baseURL`: 환경 변수 `VITE_API_URL`을 사용하여 API의 기본 URL을 설정합니다.
- *              이는 개발 및 배포 환경에 따라 유연하게 변경될 수 있습니다.
- * - `timeout`: 요청 타임아웃을 10초(10000ms)로 설정하여 응답이 지연될 경우를 대비합니다.
- * - `headers`: 모든 요청에 `Content-Type`을 `application/json`으로 설정합니다.
+ * @file pushApi.ts
+ * @description 푸시 알림 관련 백엔드 API 호출을 담당하는 모듈입니다.
+ *              중앙 집중식 `httpClient`를 사용하여 API 요청을 수행하며,
+ *              푸시 구독 등록 및 테스트 푸시 알림 전송 기능을 제공합니다.
  */
-const pushApi = axios.create({
-  baseURL: import.meta.env.VITE_API_URL, // Vite 환경 변수에서 API 기본 URL을 가져옵니다.
-  timeout: 10000, // 요청 타임아웃을 10초로 설정합니다.
-  headers: {
-    'Content-Type': 'application/json', // JSON 형식의 데이터를 전송함을 명시합니다.
-  },
-});
 
 /**
  * @interface PushTokenData
@@ -68,7 +59,7 @@ export interface PushSubscriptionData {
 export const registerPushSubscription = async (data: PushSubscriptionData): Promise<PushTokenResponse> => {
   try {
     // `/push/subscribe` 엔드포인트로 POST 요청을 보냅니다.
-    const response = await pushApi.post<PushTokenResponse>('/push/subscribe', data);
+    const response = await httpClient.post<PushTokenResponse>('/push/subscribe', data);
     return response.data; // 서버 응답 데이터를 반환합니다.
   } catch (error) {
     console.error('Failed to register push subscription:', error); // 에러 로깅
@@ -90,7 +81,7 @@ export const sendPushNotification = async (userId: string, message: string): Pro
   try {
     // `/notifications` 엔드포인트로 POST 요청을 보냅니다.
     // 요청 본문에는 userId와 message를 포함합니다.
-    const response = await pushApi.post<PushTokenResponse>('/notifications', {
+    const response = await httpClient.post<PushTokenResponse>('/notifications', {
       userId,
       message,
       // title: '테스트 알림', // 필요에 따라 주석 해제하여 사용할 수 있습니다.
@@ -122,5 +113,3 @@ export interface PushNotificationSettings {
     end: string;   // 종료 시간 (HH:mm 형식)
   };
 }
-
-export default pushApi; // Axios 인스턴스를 기본 내보내기로 설정합니다.

@@ -1,9 +1,11 @@
-import axios from 'axios';
+import httpClient from './httpClient';
 
 /**
- * 백엔드 API의 기본 URL을 가져오거나 기본값 '/api'를 사용합니다.
+ * @file scheduleApi.ts
+ * @description 크롤링 스케줄 관련 백엔드 API 호출을 담당하는 모듈입니다.
+ *              중앙 집중식 `httpClient`를 사용하여 API 요청을 수행하며,
+ *              스케줄 추가, 조회, 취소, 업데이트 기능을 제공합니다.
  */
-const API_URL = import.meta.env.VITE_API_URL || '/api';
 
 /**
  * @interface CrawlingSchedule
@@ -28,7 +30,7 @@ export interface CrawlingSchedule {
  * @returns {Promise<CrawlingSchedule>} 새로 추가된 스케줄 작업 정보를 담은 Promise
  */
 export const addCrawlingSchedule = async (userId: string, cronExpression: string): Promise<CrawlingSchedule> => {
-  const response = await axios.post<CrawlingSchedule>(`${API_URL}/schedules/crawling`, {
+  const response = await httpClient.post<CrawlingSchedule>('/schedules/crawling', {
     userId,
     cronExpression,
   });
@@ -41,7 +43,7 @@ export const addCrawlingSchedule = async (userId: string, cronExpression: string
  * @returns {Promise<CrawlingSchedule[]>} 크롤링 스케줄 작업 목록을 담은 Promise
  */
 export const getCrawlingSchedules = async (): Promise<CrawlingSchedule[]> => {
-  const response = await axios.get<CrawlingSchedule[]>(`${API_URL}/schedules/crawling`);
+  const response = await httpClient.get<CrawlingSchedule[]>('/schedules/crawling');
   return response.data;
 };
 
@@ -52,7 +54,7 @@ export const getCrawlingSchedules = async (): Promise<CrawlingSchedule[]> => {
  * @returns {Promise<void>} 작업 취소 완료를 알리는 Promise
  */
 export const cancelCrawlingSchedule = async (id: number): Promise<void> => {
-  await axios.delete(`${API_URL}/schedules/crawling/${id}`);
+  await httpClient.delete(`/schedules/crawling/${id}`);
 };
 
 /**
@@ -63,7 +65,7 @@ export const cancelCrawlingSchedule = async (id: number): Promise<void> => {
  * @returns {Promise<CrawlingSchedule>} 업데이트된 스케줄 작업 정보를 담은 Promise
  */
 export const updateCrawlingSchedule = async (id: number, cronExpression: string): Promise<CrawlingSchedule> => {
-  const response = await axios.put<CrawlingSchedule>(`${API_URL}/schedules/crawling/${id}`, {
+  const response = await httpClient.put<CrawlingSchedule>(`/schedules/crawling/${id}`, {
     cronExpression,
   });
   return response.data;

@@ -1,8 +1,11 @@
-import axios from 'axios'; // HTTP 요청을 위한 axios 라이브러리를 임포트합니다.
+import httpClient from './httpClient'; // HTTP 요청을 위한 httpClient를 임포트합니다.
 
-// 백엔드 API의 기본 URL을 정의합니다.
-// 이 URL은 애플리케이션의 환경 설정에 따라 변경될 수 있습니다.
-const API_BASE_URL = import.meta.env.VITE_API_URL;
+/**
+ * @file crawlingApi.ts
+ * @description 크롤링 관련 백엔드 API 호출을 담당하는 모듈입니다.
+ *              중앙 집중식 `httpClient`를 사용하여 API 요청을 수행하며,
+ *              크롤링 작업 시작과 관련된 기능을 제공합니다.
+ */
 
 /**
  * @async
@@ -15,9 +18,9 @@ const API_BASE_URL = import.meta.env.VITE_API_URL;
  */
 export const startCrawling = async (userId: string) => {
     try {
-        // `axios.post`를 사용하여 백엔드의 크롤링 시작 엔드포인트에 POST 요청을 보냅니다.
-        // URL은 `API_BASE_URL`과 사용자 ID를 포함하여 구성됩니다.
-        await axios.post(`${API_BASE_URL}/crawling/start/${userId}`);
+        // `httpClient.post`를 사용하여 백엔드의 크롤링 시작 엔드포인트에 POST 요청을 보냅니다.
+        // URL은 사용자 ID를 포함하여 구성됩니다.
+        await httpClient.post(`/crawling/start/${userId}`);
         // 요청이 성공적으로 완료되면 추가적인 처리는 필요 없습니다.
     } catch (error) {
         // 요청 중 발생한 오류를 콘솔에 로깅합니다.

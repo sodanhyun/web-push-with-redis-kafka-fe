@@ -1,17 +1,15 @@
 import { useCallback, useEffect, useState } from "react";
-import { addCrawlingSchedule, getCrawlingSchedules, cancelCrawlingSchedule, updateCrawlingSchedule, type CrawlingSchedule } from "../api/scheduleApi";
-import { generateCronExpression, parseCronExpression, formatCronExpression, type Frequency } from "../utils/cronUtils";
-
-interface CrawlingSchedulerProps {
-  userId: string;
-}
+import { addCrawlingSchedule, getCrawlingSchedules, cancelCrawlingSchedule, updateCrawlingSchedule, type CrawlingSchedule } from "../../api/scheduleApi";
+import { generateCronExpression, parseCronExpression, formatCronExpression, type Frequency } from "../../utils/cronUtils";
+import useUserStore from '../../store/useUserStore';
 
 /**
  * @function CrawlingScheduler
  * @description 크롤링 스케줄 작업을 추가, 조회, 수정, 취소할 수 있는 React 컴포넌트입니다.
  *              사용자 인터페이스를 통해 Cron 표현식 기반의 동적 스케줄링을 관리합니다.
  */
-const CrawlingScheduler: React.FC<CrawlingSchedulerProps> = ({ userId }) => {
+const CrawlingScheduler: React.FC = () => {
+  const userId = useUserStore((state) => state.userId);
   /**
    * @property {CrawlingSchedule[]} schedules
    * @description 현재 등록된 모든 크롤링 스케줄 목록을 저장하는 상태 변수입니다.

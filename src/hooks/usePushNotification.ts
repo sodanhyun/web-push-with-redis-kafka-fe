@@ -1,4 +1,13 @@
 import { useState, useEffect, useCallback } from 'react';
+import { registerPushSubscription } from '../api/pushApi';
+
+/**
+ * @file usePushNotification.ts
+ * @description 웹 푸시 알림 기능을 관리하는 커스텀 React 훅입니다.
+ *              브라우저의 푸시 알림 지원 여부 확인, 알림 권한 관리, 푸시 서비스 구독 및 해지,
+ *              그리고 관련 상태(구독 객체, 에러)를 관리합니다.
+ *              서버에 푸시 구독 정보를 등록하는 로직도 이 훅 내부에 포함되어 응집도를 높였습니다.
+ */
 
 /**
  * @interface PushNotificationState
@@ -45,11 +54,13 @@ const isPushSupported = () =>
  * @description 웹 푸시 알림 기능을 관리하는 커스텀 React 훅입니다.
  *              브라우저의 푸시 알림 지원 여부 확인, 알림 권한 관리, 푸시 서비스 구독 및 해지,
  *              그리고 관련 상태(구독 객체, 에러)를 관리합니다.
+ *              `userId`를 인자로 받아 서버에 구독 정보를 등록할 때 사용합니다.
  *
+ * @param {string} userId - 현재 사용자의 고유 ID. 서버에 구독 정보를 등록할 때 사용됩니다.
  * @returns {PushNotificationState & PushNotificationActions}
  *          푸시 알림의 현재 상태와 관련 액션 함수들을 포함하는 객체
  */
-export const usePushNotification = (): PushNotificationState & PushNotificationActions => {
+export const usePushNotification = (userId: string): PushNotificationState & PushNotificationActions => {
   /**
    * @property {PushNotificationState} state
    * @description 푸시 알림 관련 상태를 관리하는 React의 `useState` 훅입니다.
@@ -97,6 +108,43 @@ export const usePushNotification = (): PushNotificationState & PushNotificationA
 
     initialize();
   }, []); // 의존성 배열이 비어 있으므로 컴포넌트 마운트 시 한 번만 실행됩니다.
+
+  /**
+   * @useEffect
+   * @description 푸시 구독 정보가 변경되거나 구독 상태가 활성화될 때 서버에 구독 정보를 전송합니다.
+   *              `userId`를 사용하여 현재 사용자의 구독 정보를 백엔드에 등록합니다.
+   *
+   * - `state.subscription` 객체가 존재하고 `state.isSubscribed`가 true일 때 실행됩니다.
+   * - 구독 객체에서 `endpoint`, `p256dh` 키, `auth` 키를 추출하여 서버에 전송할 형식으로 변환합니다.
+   * - `registerPushSubscription` API를 호출하여 서버에 구독 정보를 등록합니다.
+   * - 오류 발생 시 콘솔에 에러를 로깅합니다.
+   */
+  useEffect(() => {
+    if (state.subscription && state.isSubscribed) {
+      const sendSubscriptionToServer = async () => {
+        try {
+          // Web Push 표준에 맞는 구독 정보를 구성합니다.
+          // p256dh 및 auth 키는 Uint8Array 형태이므로 Base64 문자열로 변환합니다.
+          const subscriptionData = {
+            endpoint: state.subscription!.endpoint,
+            userId: userId, // 현재 사용자 ID를 함께 전송합니다.
+            keys: {
+              p256dh: btoa(String.fromCharCode(...new Uint8Array(state.subscription!.getKey('p256dh')!))),
+              auth: btoa(String.fromCharCode(...new Uint8Array(state.subscription!.getKey('auth')!))),
+            },
+          };
+
+          // 서버 API를 호출하여 구독 정보를 등록합니다.
+          await registerPushSubscription(subscriptionData);
+          console.log('푸시 구독 정보가 서버에 등록되었습니다.');
+        } catch (error) {
+          console.error('서버에 구독 정보 전송 실패:', error);
+        }
+      };
+
+      sendSubscriptionToServer();
+    }
+  }, [state.subscription, state.isSubscribed, userId]); // userId를 의존성 배열에 추가하여 변경 시 재실행되도록 합니다.
 
   /**
    * @function requestPermission
