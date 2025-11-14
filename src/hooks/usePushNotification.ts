@@ -1,6 +1,3 @@
-import { useState, useEffect, useCallback } from 'react';
-import { registerPushSubscription } from '../api/pushApi';
-
 /**
  * @file usePushNotification.ts
  * @description 웹 푸시 알림 기능을 관리하는 커스텀 React 훅입니다.
@@ -9,21 +6,19 @@ import { registerPushSubscription } from '../api/pushApi';
  *              서버에 푸시 구독 정보를 등록하는 로직도 이 훅 내부에 포함되어 응집도를 높였습니다.
  */
 
+import { useState, useEffect, useCallback } from 'react';
+import { registerPushSubscription } from '../api/pushApi';
+
 /**
  * @interface PushNotificationState
  * @description 푸시 알림 기능의 현재 상태를 정의하는 인터페이스입니다.
  */
 interface PushNotificationState {
-  /** 브라우저가 푸시 알림을 지원하는지 여부 */
-  isSupported: boolean;
-  /** 현재 알림 권한 상태 ('granted', 'denied', 'default') */
-  permission: NotificationPermission;
-  /** 푸시 알림에 구독되어 있는지 여부 */
-  isSubscribed: boolean;
-  /** 현재 푸시 구독 객체 (없으면 null) */
-  subscription: PushSubscription | null;
-  /** 발생한 에러 메시지 (없으면 null) */
-  error: string | null;
+  isSupported: boolean;           // 브라우저가 푸시 알림을 지원하는지 여부
+  permission: NotificationPermission; // 현재 알림 권한 상태 ('granted', 'denied', 'default')
+  isSubscribed: boolean;          // 푸시 알림에 구독되어 있는지 여부
+  subscription: PushSubscription | null; // 현재 푸시 구독 객체 (없으면 null)
+  error: string | null;           // 발생한 에러 메시지 (없으면 null)
 }
 
 /**
@@ -31,14 +26,10 @@ interface PushNotificationState {
  * @description 푸시 알림 기능과 관련된 액션 함수들을 정의하는 인터페이스입니다.
  */
 interface PushNotificationActions {
-  /** 사용자에게 알림 권한을 요청하는 비동기 함수 */
-  requestPermission: () => Promise<boolean>;
-  /** 푸시 알림 서비스에 구독하는 비동기 함수 */
-  subscribe: () => Promise<boolean>;
-  /** 푸시 알림 구독을 해지하는 비동기 함수 */
-  unsubscribe: () => Promise<boolean>;
-  /** 현재 에러 상태를 초기화하는 함수 */
-  clearError: () => void;
+  requestPermission: () => Promise<boolean>; // 사용자에게 알림 권한을 요청하는 비동기 함수
+  subscribe: () => Promise<boolean>;         // 푸시 알림 서비스에 구독하는 비동기 함수
+  unsubscribe: () => Promise<boolean>;       // 푸시 알림 구독을 해지하는 비동기 함수
+  clearError: () => void;                    // 현재 에러 상태를 초기화하는 함수
 }
 
 /**
@@ -50,7 +41,7 @@ const isPushSupported = () =>
   'serviceWorker' in navigator && 'PushManager' in window;
 
 /**
- * @function usePushNotification
+ * @hook usePushNotification
  * @description 웹 푸시 알림 기능을 관리하는 커스텀 React 훅입니다.
  *              브라우저의 푸시 알림 지원 여부 확인, 알림 권한 관리, 푸시 서비스 구독 및 해지,
  *              그리고 관련 상태(구독 객체, 에러)를 관리합니다.
@@ -74,7 +65,7 @@ export const usePushNotification = (userId: string): PushNotificationState & Pus
   });
 
   /**
-   * @useEffect
+   * @hook useEffect
    * @description 컴포넌트가 마운트될 때 한 번 실행되어 푸시 알림 기능을 초기화합니다.
    *              브라우저 지원 여부 확인, 권한 상태 설정, 기존 구독 정보 로드 등을 수행합니다.
    */
@@ -110,7 +101,7 @@ export const usePushNotification = (userId: string): PushNotificationState & Pus
   }, []); // 의존성 배열이 비어 있으므로 컴포넌트 마운트 시 한 번만 실행됩니다.
 
   /**
-   * @useEffect
+   * @hook useEffect
    * @description 푸시 구독 정보가 변경되거나 구독 상태가 활성화될 때 서버에 구독 정보를 전송합니다.
    *              `userId`를 사용하여 현재 사용자의 구독 정보를 백엔드에 등록합니다.
    *
@@ -153,20 +144,17 @@ export const usePushNotification = (userId: string): PushNotificationState & Pus
    * @returns {Promise<boolean>} 권한 요청 성공 여부 (granted: true, denied/default: false)
    */
   const requestPermission = useCallback(async (): Promise<boolean> => {
-    // 브라우저가 푸시 알림을 지원하지 않으면 에러를 설정하고 false를 반환합니다.
     if (!isPushSupported()) {
       setState(prev => ({ ...prev, error: '푸시 알림을 지원하지 않는 브라우저입니다.' }));
       return false;
     }
 
     try {
-      // 사용자에게 알림 권한 요청 팝업을 띄웁니다.
       const permission = await Notification.requestPermission();
-      // 요청 결과에 따라 권한 상태를 업데이트합니다.
       setState(prev => ({ ...prev, permission }));
 
       if (permission === 'granted') {
-        return true; // 권한 허용됨
+        return true;
       } else {
         setState(prev => ({ ...prev, error: '푸시 알림 권한이 거부되었습니다.' }));
         return false;
@@ -185,21 +173,18 @@ export const usePushNotification = (userId: string): PushNotificationState & Pus
    * @returns {Promise<boolean>} 구독 성공 여부
    */
   const subscribe = useCallback(async (): Promise<boolean> => {
-    // 알림 권한이 'granted'가 아니면 구독을 시도하지 않습니다.
     if (state.permission !== 'granted') {
       setState(prev => ({ ...prev, error: '푸시 알림 권한이 필요합니다.' }));
       return false;
     }
 
     try {
-      // 서비스 워커 등록 객체를 가져와 푸시 서비스에 구독을 요청합니다.
       const registration = await navigator.serviceWorker.ready;
       const subscription = await registration.pushManager.subscribe({
         userVisibleOnly: true, // 사용자에게 항상 알림이 표시되도록 설정
         applicationServerKey: import.meta.env.VITE_APP_VAPID_PUBLIC_KEY, // VAPID 공개 키
       });
 
-      // 구독 성공 시 상태를 업데이트합니다.
       setState(prev => ({ ...prev, isSubscribed: true, subscription, error: null }));
       return true;
     } catch (error) {
@@ -216,15 +201,12 @@ export const usePushNotification = (userId: string): PushNotificationState & Pus
    * @returns {Promise<boolean>} 구독 해지 성공 여부
    */
   const unsubscribe = useCallback(async (): Promise<boolean> => {
-    // 현재 구독 객체가 없으면 해지할 것이 없으므로 false를 반환합니다.
     if (!state.subscription) {
       return false;
     }
 
     try {
-      // 현재 구독을 해지합니다.
       await state.subscription.unsubscribe();
-      // 해지 성공 시 상태를 업데이트합니다.
       setState(prev => ({ ...prev, isSubscribed: false, subscription: null, error: null }));
       return true;
     } catch (error) {

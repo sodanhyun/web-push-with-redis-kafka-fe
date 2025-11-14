@@ -1,11 +1,11 @@
-import httpClient from './httpClient';
-
 /**
  * @file scheduleApi.ts
  * @description 크롤링 스케줄 관련 백엔드 API 호출을 담당하는 모듈입니다.
  *              중앙 집중식 `httpClient`를 사용하여 API 요청을 수행하며,
  *              스케줄 추가, 조회, 취소, 업데이트 기능을 제공합니다.
  */
+
+import httpClient from './httpClient';
 
 /**
  * @interface CrawlingSchedule
@@ -26,10 +26,10 @@ export interface CrawlingSchedule {
  * 새로운 크롤링 스케줄 작업을 백엔드에 추가합니다.
  * 사용자 ID는 백엔드에서 JWT를 통해 자동으로 추출됩니다.
  *
- * @param {string} cronExpression 작업을 실행할 Cron 표현식
+ * @param {string} cronExpression - 작업을 실행할 Cron 표현식
  * @returns {Promise<CrawlingSchedule>} 새로 추가된 스케줄 작업 정보를 담은 Promise
  */
-export const addCrawlingSchedule = async (cronExpression: string): Promise<CrawlingSchedule> => { // userId 인자 제거
+export const addCrawlingSchedule = async (cronExpression: string): Promise<CrawlingSchedule> => {
   const response = await httpClient.post<CrawlingSchedule>('/schedules/crawling', {
     cronExpression,
   });
@@ -42,7 +42,7 @@ export const addCrawlingSchedule = async (cronExpression: string): Promise<Crawl
  *
  * @returns {Promise<CrawlingSchedule[]>} 크롤링 스케줄 작업 목록을 담은 Promise
  */
-export const getCrawlingSchedules = async (): Promise<CrawlingSchedule[]> => { // userId 인자 제거
+export const getCrawlingSchedules = async (): Promise<CrawlingSchedule[]> => {
   const response = await httpClient.get<CrawlingSchedule[]>('/schedules/crawling');
   return response.data;
 };
@@ -51,10 +51,10 @@ export const getCrawlingSchedules = async (): Promise<CrawlingSchedule[]> => { /
  * 지정된 ID의 크롤링 스케줄 작업을 백엔드에서 취소합니다.
  * 사용자 ID는 백엔드에서 JWT를 통해 자동으로 추출됩니다.
  *
- * @param {number} id 취소할 스케줄 작업의 ID
+ * @param {number} id - 취소할 스케줄 작업의 ID
  * @returns {Promise<void>} 작업 취소 완료를 알리는 Promise
  */
-export const cancelCrawlingSchedule = async (id: number): Promise<void> => { // userId 인자 제거
+export const cancelCrawlingSchedule = async (id: number): Promise<void> => {
   await httpClient.delete(`/schedules/crawling/${id}`);
 };
 
@@ -62,11 +62,11 @@ export const cancelCrawlingSchedule = async (id: number): Promise<void> => { // 
  * 지정된 ID의 크롤링 스케줄 작업의 Cron 표현식을 업데이트합니다.
  * 사용자 ID는 백엔드에서 JWT를 통해 자동으로 추출됩니다.
  *
- * @param {number} id 업데이트할 스케줄 작업의 ID
- * @param {string} cronExpression 새로 설정할 Cron 표현식
+ * @param {number} id - 업데이트할 스케줄 작업의 ID
+ * @param {string} cronExpression - 새로 설정할 Cron 표현식
  * @returns {Promise<CrawlingSchedule>} 업데이트된 스케줄 작업 정보를 담은 Promise
  */
-export const updateCrawlingSchedule = async (id: number, cronExpression: string): Promise<CrawlingSchedule> => { // userId 인자 제거
+export const updateCrawlingSchedule = async (id: number, cronExpression: string): Promise<CrawlingSchedule> => {
   const response = await httpClient.put<CrawlingSchedule>(`/schedules/crawling/${id}`, {
     cronExpression,
   });

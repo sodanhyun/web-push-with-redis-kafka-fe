@@ -45,6 +45,17 @@ self.addEventListener('activate', (event) => {
 
 // 3. 네트워크 요청 가로채기 (네트워크 우선, 실패 시 캐시 사용)
 self.addEventListener('fetch', (event) => {
+  const requestUrl = new URL(event.request.url);
+
+  // 인증 관련 API 요청은 서비스 워커를 통과하지 않고 네트워크로 직접 보냅니다.
+  // /api/auth/refresh 또는 /api/auth/login과 같은 경로를 예외 처리합니다.
+  if (requestUrl.pathname.startsWith('/api/auth/refresh') || requestUrl.pathname.startsWith('/api/auth/login')) {
+    // console.log(`[Service Worker] 인증 요청 (${requestUrl.pathname})은 네트워크로 직접 전달합니다.`); // 디버그 로그
+    event.respondWith(fetch(event.request));
+    return;
+  }
+
+  // 그 외의 요청에 대해서는 기존의 "네트워크 우선, 실패 시 캐시 사용" 전략을 유지합니다.
   event.respondWith(
     fetch(event.request).catch(() => {
       console.log(`[Service Worker] 네트워크 요청 실패: ${event.request.url}. 캐시에서 응답을 시도합니다.`);
