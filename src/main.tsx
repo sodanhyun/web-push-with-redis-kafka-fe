@@ -16,6 +16,9 @@ if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('/sw.js')
       .then(registration => {
         console.log('Service Worker registered: ', registration);
+        // 서비스 워커의 업데이트를 강제로 확인합니다.
+        // 이를 통해 캐시 문제를 우회하고 최신 서비스 워커가 설치되도록 보장합니다.
+        registration.update();
       })
       .catch(error => {
         console.log('Service Worker registration failed: ', error);

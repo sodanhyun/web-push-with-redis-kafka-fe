@@ -52,9 +52,15 @@ const CrawlingTable: React.FC = () => {
                 setProgress(prev => Math.min(prev + 10, 100)); // 진행률을 10%씩 증가시키되 100%를 초과하지 않도록 합니다。
             }
         }, []),
-        onOpen: () => console.log(`WebSocket connected for user: ${userId}`),
-        onClose: () => console.log('WebSocket disconnected'),
-        onError: (e) => console.error('WebSocket error:', e),
+        onOpen: useCallback(() => {
+            console.log(`WebSocket connected for user: ${userId}`);
+        }, [userId]),
+        onClose: useCallback(() => {
+            console.log('WebSocket disconnected');
+        }, []),
+        onError: useCallback((e) => {
+            console.error('WebSocket error:', e);
+        }, []),
     });
 
     // 기존 useEffect는 제거하고 useWebSocket 훅의 lastMessage를 통해 메시지 처리

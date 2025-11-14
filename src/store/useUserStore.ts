@@ -3,8 +3,7 @@ import { create } from 'zustand';
 /**
  * @file useUserStore.ts
  * @description 전역 사용자 ID(userId) 상태를 관리하는 Zustand 스토어입니다.
- *              애플리케이션 전반에서 userId를 쉽게 접근하고 업데이트할 수 있도록 하여
- *              컴포넌트 간의 불필요한 prop drilling을 제거하고 결합도를 낮춥니다.
+ *              localStorage와의 연동 로직은 App.tsx에서 처리합니다.
  */
 
 interface UserState {
@@ -13,7 +12,8 @@ interface UserState {
 }
 
 const useUserStore = create<UserState>((set) => ({
-  userId: `user_${Date.now()}`, // Initial userId, similar to App.tsx
+  // 초기 userId는 임시값이며, App.tsx에서 localStorage 값으로 덮어쓰여집니다.
+  userId: '',
   setUserId: (id: string) => set({ userId: id }),
 }));
 

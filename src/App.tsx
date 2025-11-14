@@ -9,30 +9,36 @@ import SubscribeButton from './components/notification/SubscribeButton';
 import PushNotificationStatus from './components/notification/PushNotificationStatus';
 import useUserStore from './store/useUserStore';
 import WebSocketComp from './components/crawling/CrawlingTable';
+import { useEffect } from 'react';
+
+const STORAGE_KEY = 'user-id-manual';
 
 /**
  * @function App
  * @description 메인 애플리케이션 컴포넌트.
  * 푸시 알림 및 웹소켓 데모 기능을 제공합니다.
- *
- * 주요 기능:
- * 1. 사용자 ID 생성 및 관리
- * 2. usePushNotification 훅을 사용하여 푸시 알림 관련 상태 및 함수 관리
- * 3. 푸시 구독 성공 시 서버에 구독 정보 전송
- * 4. 서비스 워커로부터 브로드캐스트 채널을 통해 메시지 수신 및 처리
- * 5. 푸시 알림 상태 (브라우저 지원, 권한, 구독 여부) 표시
- * 6. 푸시 알림 구독/해지 버튼 렌더링
- * 7. WebSocketTest 컴포넌트를 통한 웹소켓 통신 데모
- * 8. NotificationContainer를 통한 토스트 알림 표시
  */
 function App() {
-  // 고유한 사용자 ID를 생성합니다. 페이지 로드 시 한 번만 생성됩니다.
-  // 이 ID는 푸시 구독 정보를 서버에 전송할 때 사용됩니다.
+  // Zustand 스토어에서 상태와 액션을 개별적으로 선택하여 불필요한 리렌더링을 방지합니다.
   const userId = useUserStore((state) => state.userId);
+  const setUserId = useUserStore((state) => state.setUserId);
+
+  // 컴포넌트가 처음 마운트될 때 한 번만 실행되어 userId를 초기화합니다.
+  useEffect(() => {
+    let finalUserId = localStorage.getItem(STORAGE_KEY);
+
+    if (!finalUserId) {
+      // localStorage에 ID가 없으면 새로 생성하고 저장합니다.
+      finalUserId = `user_${Date.now()}`;
+      localStorage.setItem(STORAGE_KEY, finalUserId);
+    }
+
+    // 스토어의 상태를 최종 ID로 설정합니다.
+    setUserId(finalUserId);
+  }, [setUserId]); // setUserId는 항상 안정적이므로 이 훅은 한 번만 실행됩니다.
+
 
   // usePushNotification 커스텀 훅을 사용하여 푸시 알림 관련 로직을 관리합니다.
-  // 이 훅은 푸시 알림의 지원 여부, 권한 상태, 구독 여부, 구독 객체,
-  // 그리고 권한 요청, 구독, 해지 함수를 제공합니다.
   const {
     isSupported,
     permission,

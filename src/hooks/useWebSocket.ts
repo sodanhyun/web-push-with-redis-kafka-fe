@@ -25,11 +25,14 @@ const useWebSocket = (options?: UseWebSocketOptions) => {
   const [error, setError] = useState<Event | null>(null);
   const ws = useRef<WebSocket | null>(null);
   const reconnectAttempts = useRef(0);
+  const stableConnectionTimeout = useRef<number | null>(null);
   const { onOpen, onMessage, onClose, onError, reconnectInterval = 3000, reconnectLimit = 5 } = options || {};
 
   const connect = useCallback(() => {
+    console.log(">>>> [WebSocket] Attempting to connect... (Version 3)");
+
     if (!userId) {
-      console.warn("userId is not available, skipping WebSocket connection.");
+      console.warn(">>>> [WebSocket] userId is not available, skipping WebSocket connection.");
       return;
     }
 
@@ -37,16 +40,27 @@ const useWebSocket = (options?: UseWebSocketOptions) => {
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     const wsUrl = `${protocol}//${window.location.host}${VITE_WS_URL}/${userId}`;
 
-    if (ws.current && ws.current.readyState === WebSocket.OPEN) {
+    if (ws.current && (ws.current.readyState === WebSocket.OPEN || ws.current.readyState === WebSocket.CONNECTING)) {
+      console.log(">>>> [WebSocket] Connection attempt skipped: already open or connecting.");
       return;
     }
 
+    if (stableConnectionTimeout.current) {
+        clearTimeout(stableConnectionTimeout.current);
+    }
+
+    console.log(">>>> [WebSocket] Creating new WebSocket instance.");
     ws.current = new WebSocket(wsUrl);
     setError(null);
 
     ws.current.onopen = (event) => {
       setIsConnected(true);
-      reconnectAttempts.current = 0; // Reset reconnect attempts on successful connection
+      
+      stableConnectionTimeout.current = window.setTimeout(() => {
+        reconnectAttempts.current = 0;
+        console.log(">>>> [WebSocket] Connection is stable, resetting reconnect attempts.");
+      }, 1000);
+
       onOpen?.(event);
     };
 
@@ -57,11 +71,16 @@ const useWebSocket = (options?: UseWebSocketOptions) => {
 
     ws.current.onclose = (event) => {
       setIsConnected(false);
+      if (stableConnectionTimeout.current) {
+          clearTimeout(stableConnectionTimeout.current);
+      }
       onClose?.(event);
       if (reconnectAttempts.current < reconnectLimit) {
         reconnectAttempts.current++;
+        console.log(`>>>> [WebSocket] Connection closed. Reconnect attempt ${reconnectAttempts.current} of ${reconnectLimit}.`);
         setTimeout(connect, reconnectInterval);
       } else {
+        console.error(`>>>> [WebSocket] Connection closed permanently after ${reconnectLimit} retries.`);
         setError(new Event("WebSocket connection closed permanently after multiple retries."));
       }
     };
@@ -75,8 +94,10 @@ const useWebSocket = (options?: UseWebSocketOptions) => {
 
   useEffect(() => {
     connect();
-
     return () => {
+      if (stableConnectionTimeout.current) {
+          clearTimeout(stableConnectionTimeout.current);
+      }
       ws.current?.close();
     };
   }, [connect]);
