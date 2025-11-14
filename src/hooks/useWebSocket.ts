@@ -26,10 +26,15 @@ const useWebSocket = (options?: UseWebSocketOptions) => {
   const ws = useRef<WebSocket | null>(null);
   const reconnectAttempts = useRef(0);
   const stableConnectionTimeout = useRef<number | null>(null);
-  const { onOpen, onMessage, onClose, onError, reconnectInterval = 3000, reconnectLimit = 5 } = options || {};
+
+  // options를 ref로 관리하여 부모 컴포넌트의 리렌더링으로 인한 options 객체 재생성 문제 방지
+  const optionsRef = useRef(options);
+  useEffect(() => {
+    optionsRef.current = options;
+  }, [options]);
 
   const connect = useCallback(() => {
-    console.log(">>>> [WebSocket] Attempting to connect... (Version 3)");
+    console.log(">>>> [WebSocket] Attempting to connect... (Version 4)");
 
     if (!userId) {
       console.warn(">>>> [WebSocket] userId is not available, skipping WebSocket connection.");
@@ -61,12 +66,12 @@ const useWebSocket = (options?: UseWebSocketOptions) => {
         console.log(">>>> [WebSocket] Connection is stable, resetting reconnect attempts.");
       }, 1000);
 
-      onOpen?.(event);
+      optionsRef.current?.onOpen?.(event);
     };
 
     ws.current.onmessage = (event) => {
       setLastMessage(event);
-      onMessage?.(event);
+      optionsRef.current?.onMessage?.(event);
     };
 
     ws.current.onclose = (event) => {
@@ -74,10 +79,13 @@ const useWebSocket = (options?: UseWebSocketOptions) => {
       if (stableConnectionTimeout.current) {
           clearTimeout(stableConnectionTimeout.current);
       }
-      onClose?.(event);
+      optionsRef.current?.onClose?.(event);
+
+      const reconnectLimit = optionsRef.current?.reconnectLimit ?? 5;
       if (reconnectAttempts.current < reconnectLimit) {
         reconnectAttempts.current++;
         console.log(`>>>> [WebSocket] Connection closed. Reconnect attempt ${reconnectAttempts.current} of ${reconnectLimit}.`);
+        const reconnectInterval = optionsRef.current?.reconnectInterval ?? 3000;
         setTimeout(connect, reconnectInterval);
       } else {
         console.error(`>>>> [WebSocket] Connection closed permanently after ${reconnectLimit} retries.`);
@@ -87,10 +95,10 @@ const useWebSocket = (options?: UseWebSocketOptions) => {
 
     ws.current.onerror = (event) => {
       setError(event);
-      onError?.(event);
+      optionsRef.current?.onError?.(event);
       ws.current?.close(); // Attempt to close on error to trigger onclose and reconnect logic
     };
-  }, [userId, onOpen, onMessage, onClose, onError, reconnectInterval, reconnectLimit]);
+  }, [userId]); // connect 함수는 userId에만 의존하도록 변경
 
   useEffect(() => {
     connect();
@@ -98,6 +106,8 @@ const useWebSocket = (options?: UseWebSocketOptions) => {
       if (stableConnectionTimeout.current) {
           clearTimeout(stableConnectionTimeout.current);
       }
+      // 컴포넌트 언마운트 시 재연결 시도 중지
+      reconnectAttempts.current = optionsRef.current?.reconnectLimit ?? 5;
       ws.current?.close();
     };
   }, [connect]);
