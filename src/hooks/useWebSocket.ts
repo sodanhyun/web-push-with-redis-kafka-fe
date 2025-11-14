@@ -41,7 +41,7 @@ const useWebSocket = (options?: UseWebSocketOptions) => {
       return;
     }
 
-    const VITE_WS_URL = import.meta.env.VITE_WS_URL;
+    const VITE_WS_URL = '/ws'; // 환경 변수 대신 프록시 경로 직접 사용
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     const wsUrl = `${protocol}//${window.location.host}${VITE_WS_URL}/${userId}`;
 

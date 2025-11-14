@@ -43,35 +43,14 @@ self.addEventListener('activate', (event) => {
   );
 });
 
-// 3. 네트워크 요청 가로채기 (캐싱 전략)
+// 3. 네트워크 요청 가로채기 (개발 중 캐시 비활성화)
 self.addEventListener('fetch', (event) => {
-  // API 또는 WebSocket 요청은 캐시하지 않습니다.
-  if (event.request.url.includes('/api') || event.request.url.includes('/ws')) {
-    return;
-  }
-
-  // HTML 문서와 같은 네비게이션 요청은 네트워크 우선 전략을 사용합니다.
-  if (event.request.mode === 'navigate') {
-    event.respondWith(
-      fetch(event.request).catch(() => caches.match('/index.html'))
-    );
-    return;
-  }
-
-  // 그 외 정적 자원(JS, CSS, 이미지 등)은 캐시 우선 전략을 사용합니다.
+  // 캐시를 사용하지 않고 항상 네트워크로 요청을 보냅니다.
+  // 이렇게 하면 최신 소스 코드가 항상 반영됩니다.
   event.respondWith(
-    caches.match(event.request).then((response) => {
-      return response || fetch(event.request).then((fetchResponse) => {
-        // 유효한 응답만 캐시에 저장합니다.
-        if (!fetchResponse || fetchResponse.status !== 200 || fetchResponse.type !== 'basic') {
-          return fetchResponse;
-        }
-        const responseToCache = fetchResponse.clone();
-        caches.open(CACHE_NAME).then((cache) => {
-          cache.put(event.request, responseToCache);
-        });
-        return fetchResponse;
-      });
+    fetch(event.request).catch(err => {
+      console.error('[Service Worker] Fetch failed:', err);
+      throw err;
     })
   );
 });
