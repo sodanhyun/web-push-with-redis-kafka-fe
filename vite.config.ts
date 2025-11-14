@@ -44,6 +44,9 @@ try {
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [react()],
+  define: {
+    global: 'window',
+  },
   server: {
     https: httpsOptions,
     port: 5173,

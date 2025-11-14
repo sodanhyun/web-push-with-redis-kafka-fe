@@ -43,14 +43,12 @@ self.addEventListener('activate', (event) => {
   );
 });
 
-// 3. 네트워크 요청 가로채기 (개발 중 캐시 비활성화)
+// 3. 네트워크 요청 가로채기 (네트워크 우선, 실패 시 캐시 사용)
 self.addEventListener('fetch', (event) => {
-  // 캐시를 사용하지 않고 항상 네트워크로 요청을 보냅니다.
-  // 이렇게 하면 최신 소스 코드가 항상 반영됩니다.
   event.respondWith(
-    fetch(event.request).catch(err => {
-      console.error('[Service Worker] Fetch failed:', err);
-      throw err;
+    fetch(event.request).catch(() => {
+      console.log(`[Service Worker] 네트워크 요청 실패: ${event.request.url}. 캐시에서 응답을 시도합니다.`);
+      return caches.match(event.request);
     })
   );
 });

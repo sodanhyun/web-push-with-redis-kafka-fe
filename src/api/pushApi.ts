@@ -14,7 +14,7 @@ import httpClient from './httpClient'; // HTTP 요청을 위한 httpClient를 �
  */
 export interface PushTokenData {
   token: string; // 디바이스 푸시 토큰
-  userId: string; // 사용자 ID
+  // userId: string; // 사용자 ID 제거
   deviceInfo: {
     userAgent: string; // 사용자 에이전트 문자열
     platform: string; // 운영체제 플랫폼
@@ -40,7 +40,7 @@ export interface PushTokenResponse {
  */
 export interface PushSubscriptionData {
   endpoint: string; // 푸시 서비스 엔드포인트 URL
-  userId: string; // 구독과 연결될 사용자 ID
+  // userId: string; // 구독과 연결될 사용자 ID 제거
   keys: { // 암호화 키 정보
     p256dh: string; // P-256 elliptic curve Diffie-Hellman 공개 키 (Base64 인코딩)
     auth: string; // 인증 비밀 키 (Base64 인코딩)
@@ -51,15 +51,18 @@ export interface PushSubscriptionData {
  * @async
  * @function registerPushSubscription
  * @description 클라이언트의 푸시 구독 정보를 백엔드 서버에 등록합니다.
+ *              사용자 ID는 백엔드에서 JWT를 통해 자동으로 추출됩니다.
  *
- * @param {PushSubscriptionData} data - 서버에 등록할 푸시 구독 정보 객체입니다.
+ * @param {PushSubscriptionData} data - 서버에 등록할 푸시 구독 정보 객체입니다. (userId 필드 제거)
  * @returns {Promise<PushTokenResponse>} - 서버로부터의 응답 데이터를 포함하는 Promise입니다.
  * @throws {Error} - API 요청 실패 시 에러를 던집니다.
  */
 export const registerPushSubscription = async (data: PushSubscriptionData): Promise<PushTokenResponse> => {
   try {
     // `/push/subscribe` 엔드포인트로 POST 요청을 보냅니다.
-    const response = await httpClient.post<PushTokenResponse>('/push/subscribe', data);
+    // data 객체에서 userId를 제거합니다.
+    const { userId, ...postData } = data; // userId를 제거하고 나머지 데이터만 전송
+    const response = await httpClient.post<PushTokenResponse>('/push/subscribe', postData);
     return response.data; // 서버 응답 데이터를 반환합니다.
   } catch (error) {
     console.error('Failed to register push subscription:', error); // 에러 로깅
@@ -70,19 +73,18 @@ export const registerPushSubscription = async (data: PushSubscriptionData): Prom
 /**
  * @async
  * @function sendPushNotification
- * @description 특정 사용자에게 테스트 푸시 알림을 전송하도록 백엔드 서버에 요청합니다.
+ * @description 현재 인증된 사용자에게 테스트 푸시 알림을 전송하도록 백엔드 서버에 요청합니다.
+ *              사용자 ID는 백엔드에서 JWT를 통해 자동으로 추출됩니다.
  *
- * @param {string} userId - 알림을 받을 사용자의 ID입니다.
  * @param {string} message - 알림에 포함될 메시지 내용입니다.
  * @returns {Promise<PushTokenResponse>} - 서버로부터의 응답 데이터를 포함하는 Promise입니다.
  * @throws {Error} - API 요청 실패 시 에러를 던집니다.
  */
-export const sendPushNotification = async (userId: string, message: string): Promise<PushTokenResponse> => {
+export const sendPushNotification = async (message: string): Promise<PushTokenResponse> => { // userId 인자 제거
   try {
     // `/notifications` 엔드포인트로 POST 요청을 보냅니다.
-    // 요청 본문에는 userId와 message를 포함합니다.
+    // 요청 본문에서 userId를 제거합니다.
     const response = await httpClient.post<PushTokenResponse>('/notifications', {
-      userId,
       message,
       // title: '테스트 알림', // 필요에 따라 주석 해제하여 사용할 수 있습니다.
     });
@@ -99,7 +101,7 @@ export const sendPushNotification = async (userId: string, message: string): Pro
  * (현재 사용되지 않지만, 향후 확장성을 위해 정의되어 있습니다.)
  */
 export interface PushNotificationSettings {
-  userId: string; // 사용자 ID
+  // userId: string; // 사용자 ID 제거
   enabled: boolean; // 푸시 알림 활성화 여부
   types: { // 알림 타입별 설정
     general: boolean; // 일반 알림

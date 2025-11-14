@@ -4,6 +4,7 @@ interface CrawlingData {
     title: string;
     content: string;
     status: string;
+    progress: number; // progress 필드 추가
 }
 
 interface UseCrawlingResult {
@@ -25,20 +26,19 @@ const useCrawling = (): UseCrawlingResult => {
   const handleWebSocketMessage = useCallback((event: MessageEvent) => {
     try {
       const data: CrawlingData = JSON.parse(event.data);
-      console.log("Received WebSocket message for crawling:", data);
 
-      if (data.status === 'complete') {
+      if (data.status === 'COMPLETE') {
         setProgress(100);
         setIsCrawling(false);
         setShowCompletionMessage(true);
-      } else if (data.status === 'in_progress') {
+      } else if (data.status === 'IN_PROGRESS') {
         setMessages((prevMessages) => [...prevMessages, data]);
-        setProgress((prev) => Math.min(prev + 10, 100));
+        setProgress(data.progress); // 백엔드에서 받은 progress 값 사용
       }
     } catch (err) {
       console.error("Failed to parse WebSocket message for crawling:", err);
     }
-  }, []);
+  }, [setMessages, setProgress, setIsCrawling, setShowCompletionMessage]); // 의존성 배열 업데이트
 
   const resetCrawlingState = useCallback(() => {
     setMessages([]);

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { addCrawlingSchedule, getCrawlingSchedules, cancelCrawlingSchedule, updateCrawlingSchedule, type CrawlingSchedule } from "../../api/scheduleApi";
 import { generateCronExpression, parseCronExpression, formatCronExpression, type Frequency } from "../../utils/cronUtils";
-import useUserStore from '../../store/useUserStore';
+import useAuthStore from '../../store/useAuthStore';
 
 /**
  * @function CrawlingScheduler
@@ -9,7 +9,7 @@ import useUserStore from '../../store/useUserStore';
  *              사용자 인터페이스를 통해 Cron 표현식 기반의 동적 스케줄링을 관리합니다.
  */
 const CrawlingScheduler: React.FC = () => {
-  const userId = useUserStore((state) => state.userId);
+  const userId = useAuthStore((state) => state.userId);
   /**
    * @property {CrawlingSchedule[]} schedules
    * @description 현재 등록된 모든 크롤링 스케줄 목록을 저장하는 상태 변수입니다.
@@ -63,14 +63,15 @@ const CrawlingScheduler: React.FC = () => {
    *              성공 시 `schedules` 상태를 업데이트하고, 실패 시 에러를 설정합니다.
    */
   const fetchSchedules = useCallback(async () => {
+    // if (!userId) return; // userId가 없으면 스케줄을 불러오지 않습니다. (제거)
     try {
-      const data = await getCrawlingSchedules();
+      const data = await getCrawlingSchedules(); // userId 인자 제거
       setSchedules(data);
     } catch (err) {
       console.error('Failed to fetch schedules:', err);
       setError('스케줄 목록을 불러오는데 실패했습니다.');
     }
-  }, []);
+  }, []); // userId를 의존성 배열에서 제거
 
   /**
    * @useEffect
@@ -84,15 +85,18 @@ const CrawlingScheduler: React.FC = () => {
   /**
    * @function handleAddSchedule
    * @description 새로운 크롤링 스케줄 추가 버튼 클릭 시 호출되는 핸들러입니다.
-   *              입력된 사용자 ID와 생성된 Cron 표현식을 사용하여 백엔드에 스케줄 추가를 요청합니다.
+   *              생성된 Cron 표현식을 사용하여 백엔드에 스케줄 추가를 요청합니다.
    *              성공 시 입력 필드를 초기화하고 스케줄 목록을 새로고침합니다.
    */
   const handleAddSchedule = async () => {
     setError(null);
-    // userId는 이제 prop으로 받아오므로 별도의 유효성 검사 필요 없음
+    // if (!userId) { // userId 유효성 검사 로직 제거
+    //   setError('사용자 ID가 없습니다. 로그인 해주세요.');
+    //   return;
+    // }
     const generatedCron = generateCronExpression(frequency, minute, hour, dayOfWeek, dayOfMonth);
     try {
-      await addCrawlingSchedule(userId, generatedCron);
+      await addCrawlingSchedule(generatedCron); // userId 인자 제거
       setFrequency('hourly');
       setMinute(0);
       setHour(0);
@@ -113,8 +117,12 @@ const CrawlingScheduler: React.FC = () => {
    */
   const handleCancelSchedule = async (id: number) => {
     setError(null);
+    // if (!userId) { // userId 유효성 검사 로직 제거
+    //   setError('사용자 ID가 없습니다. 로그인 해주세요.');
+    //   return;
+    // }
     try {
-      await cancelCrawlingSchedule(id);
+      await cancelCrawlingSchedule(id); // userId 인자 제거
       fetchSchedules();
     } catch (err) {
       console.error('Failed to cancel schedule:', err);
@@ -131,9 +139,13 @@ const CrawlingScheduler: React.FC = () => {
    */
   const handleUpdateSchedule = async (id: number) => {
     setError(null);
+    // if (!userId) { // userId 유효성 검사 로직 제거
+    //   setError('사용자 ID가 없습니다. 로그인 해주세요.');
+    //   return;
+    // }
     const generatedCron = generateCronExpression(frequency, minute, hour, dayOfWeek, dayOfMonth);
     try {
-      await updateCrawlingSchedule(id, generatedCron);
+      await updateCrawlingSchedule(id, generatedCron); // userId 인자 제거
       setEditingScheduleId(null);
       setEditingCronExpression(''); // Clear editing state
       fetchSchedules();
@@ -176,7 +188,7 @@ const CrawlingScheduler: React.FC = () => {
       {/* 스케줄 추가 폼 */}
       <div className="schedule-form">
         {/* 사용자 ID는 App.tsx에서 props로 전달받으므로 별도의 입력 필드 필요 없음 */}
-        <p>현재 사용자 ID: <strong>{userId}</strong></p>
+        <p>현재 사용자 ID: <strong>{userId || '로그인 필요'}</strong></p>
         <select value={frequency} onChange={(e) => setFrequency(e.target.value as Frequency)}>
           <option value="minute">매분</option>
           <option value="hourly">매시간</option>
@@ -230,7 +242,7 @@ const CrawlingScheduler: React.FC = () => {
           />분</label>
         )}
 
-        <button onClick={handleAddSchedule}>스케줄 추가</button>
+        <button onClick={handleAddSchedule} disabled={!userId}>스케줄 추가</button>
       </div>
 
       {/* 에러 메시지 표시 */}
@@ -324,13 +336,13 @@ const CrawlingScheduler: React.FC = () => {
                 {/* 수정 모드일 경우 저장/취소 버튼, 아닐 경우 수정/취소 버튼 표시 */}
                 {editingScheduleId === schedule.id ? (
                   <>
-                    <button onClick={() => handleUpdateSchedule(schedule.id)}>저장</button>
+                    <button onClick={() => handleUpdateSchedule(schedule.id)} disabled={!userId}>저장</button>
                     <button onClick={stopEditing}>취소</button>
                   </>
                 ) : (
                   <>
                     <button onClick={() => startEditing(schedule)}>수정</button>
-                    <button onClick={() => handleCancelSchedule(schedule.id)}>취소</button>
+                    <button onClick={() => handleCancelSchedule(schedule.id)} disabled={!userId}>취소</button>
                   </>
                 )}
               </td>
