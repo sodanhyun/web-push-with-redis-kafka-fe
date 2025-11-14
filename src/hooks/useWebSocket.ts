@@ -1,126 +1,88 @@
-import { useEffect, useRef, useState, useCallback } from 'react';
-import useUserStore from '../store/useUserStore';
+import { useState, useEffect, useRef, useCallback } from 'react';
 
-/**
- * @file useWebSocket.ts
- * @description WebSocket 연결 및 메시지 처리를 캡슐화하는 커스텀 훅입니다.
- *              컴포넌트에서 WebSocket 로직을 분리하여 재사용성과 유지보수성을 높이고,
- *              연결 상태, 메시지 송수신, 재연결 로직 등을 추상화합니다.
- *              userId를 내부적으로 Zustand 스토어에서 가져와 URL을 구성합니다.
- */
+export enum ReadyState {
+  CONNECTING = 0,
+  OPEN = 1,
+  CLOSING = 2,
+  CLOSED = 3,
+  UNINSTANTIATED = 4,
+}
 
 interface UseWebSocketOptions {
   onOpen?: (event: Event) => void;
+  onClose?: (event: CloseEvent) => void;
   onMessage?: (event: MessageEvent) => void;
-  onClose?: (event: Event) => void;
   onError?: (event: Event) => void;
-  reconnectInterval?: number; // milliseconds
-  reconnectLimit?: number; // number of attempts
 }
 
-const useWebSocket = (options?: UseWebSocketOptions) => {
-  const userId = useUserStore((state) => state.userId);
-  const [isConnected, setIsConnected] = useState(false);
+const useWebSocket = (url: string | null, options: UseWebSocketOptions = {}) => {
+  const [readyState, setReadyState] = useState<ReadyState>(ReadyState.UNINSTANTIATED);
   const [lastMessage, setLastMessage] = useState<MessageEvent | null>(null);
-  const [error, setError] = useState<Event | null>(null);
   const ws = useRef<WebSocket | null>(null);
-  const reconnectAttempts = useRef(0);
-  const stableConnectionTimeout = useRef<number | null>(null);
 
-  // options를 ref로 관리하여 부모 컴포넌트의 리렌더링으로 인한 options 객체 재생성 문제 방지
-  const optionsRef = useRef(options);
-  useEffect(() => {
-    optionsRef.current = options;
-  }, [options]);
-
-  const connect = useCallback(() => {
-    console.log(">>>> [WebSocket] Attempting to connect... (Version 4)");
-
-    if (!userId) {
-      console.warn(">>>> [WebSocket] userId is not available, skipping WebSocket connection.");
-      return;
-    }
-
-    const VITE_WS_URL = '/ws'; // 환경 변수 대신 프록시 경로 직접 사용
-    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const wsUrl = `${protocol}//${window.location.host}${VITE_WS_URL}/${userId}`;
-
-    if (ws.current && (ws.current.readyState === WebSocket.OPEN || ws.current.readyState === WebSocket.CONNECTING)) {
-      console.log(">>>> [WebSocket] Connection attempt skipped: already open or connecting.");
-      return;
-    }
-
-    if (stableConnectionTimeout.current) {
-        clearTimeout(stableConnectionTimeout.current);
-    }
-
-    console.log(">>>> [WebSocket] Creating new WebSocket instance.");
-    ws.current = new WebSocket(wsUrl);
-    setError(null);
-
-    ws.current.onopen = (event) => {
-      setIsConnected(true);
-      
-      stableConnectionTimeout.current = window.setTimeout(() => {
-        reconnectAttempts.current = 0;
-        console.log(">>>> [WebSocket] Connection is stable, resetting reconnect attempts.");
-      }, 1000);
-
-      optionsRef.current?.onOpen?.(event);
-    };
-
-    ws.current.onmessage = (event) => {
-      setLastMessage(event);
-      optionsRef.current?.onMessage?.(event);
-    };
-
-    ws.current.onclose = (event) => {
-      setIsConnected(false);
-      if (stableConnectionTimeout.current) {
-          clearTimeout(stableConnectionTimeout.current);
-      }
-      optionsRef.current?.onClose?.(event);
-
-      const reconnectLimit = optionsRef.current?.reconnectLimit ?? 5;
-      if (reconnectAttempts.current < reconnectLimit) {
-        reconnectAttempts.current++;
-        console.log(`>>>> [WebSocket] Connection closed. Reconnect attempt ${reconnectAttempts.current} of ${reconnectLimit}.`);
-        const reconnectInterval = optionsRef.current?.reconnectInterval ?? 3000;
-        setTimeout(connect, reconnectInterval);
-      } else {
-        console.error(`>>>> [WebSocket] Connection closed permanently after ${reconnectLimit} retries.`);
-        setError(new Event("WebSocket connection closed permanently after multiple retries."));
-      }
-    };
-
-    ws.current.onerror = (event) => {
-      setError(event);
-      optionsRef.current?.onError?.(event);
-      ws.current?.close(); // Attempt to close on error to trigger onclose and reconnect logic
-    };
-  }, [userId]); // connect 함수는 userId에만 의존하도록 변경
+  // Use refs for callbacks to prevent re-renders from creating new WebSocket connections.
+  const onOpenRef = useRef(options.onOpen);
+  const onCloseRef = useRef(options.onClose);
+  const onMessageRef = useRef(options.onMessage);
+  const onErrorRef = useRef(options.onError);
 
   useEffect(() => {
-    connect();
-    return () => {
-      if (stableConnectionTimeout.current) {
-          clearTimeout(stableConnectionTimeout.current);
-      }
-      // 컴포넌트 언마운트 시 재연결 시도 중지
-      reconnectAttempts.current = optionsRef.current?.reconnectLimit ?? 5;
-      ws.current?.close();
-    };
-  }, [connect]);
+    onOpenRef.current = options.onOpen;
+    onCloseRef.current = options.onClose;
+    onMessageRef.current = options.onMessage;
+    onErrorRef.current = options.onError;
+  }, [options.onOpen, options.onClose, options.onMessage, options.onError]);
+
+  useEffect(() => {
+    if (url) {
+      setReadyState(ReadyState.CONNECTING);
+      const socket = new WebSocket(url);
+      ws.current = socket;
+
+      socket.onopen = (event) => {
+        console.log('>>>> [WebSocket] Connection established');
+        setReadyState(ReadyState.OPEN);
+        onOpenRef.current?.(event);
+      };
+
+      socket.onmessage = (event) => {
+        setLastMessage(event);
+        onMessageRef.current?.(event);
+      };
+
+      socket.onclose = (event) => {
+        console.log('>>>> [WebSocket] Connection closed');
+        setReadyState(ReadyState.CLOSED);
+        ws.current = null;
+        onCloseRef.current?.(event);
+      };
+
+      socket.onerror = (event) => {
+        console.error('>>>> [WebSocket] Error:', event);
+        // onclose will be called automatically after an error.
+        onErrorRef.current?.(event);
+      };
+
+      return () => {
+        // Ensure socket is closed when the component unmounts or URL changes.
+        if (socket.readyState === ReadyState.OPEN || socket.readyState === ReadyState.CONNECTING) {
+          socket.close();
+        }
+      };
+    } else {
+      setReadyState(ReadyState.CLOSED);
+    }
+  }, [url]);
 
   const sendMessage = useCallback((message: string) => {
-    if (ws.current && ws.current.readyState === WebSocket.OPEN) {
+    if (ws.current && ws.current.readyState === ReadyState.OPEN) {
       ws.current.send(message);
     } else {
-      console.warn("WebSocket is not open. Cannot send message.");
+      console.warn('>>>> [WebSocket] is not open. Cannot send message.');
     }
   }, []);
 
-  return { isConnected, lastMessage, error, sendMessage };
+  return { readyState, lastMessage, sendMessage };
 };
 
 export default useWebSocket;

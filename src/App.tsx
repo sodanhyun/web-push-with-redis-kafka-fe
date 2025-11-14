@@ -8,7 +8,7 @@ import CrawlingScheduler from './components/crawling/CrawlingScheduler';
 import SubscribeButton from './components/notification/SubscribeButton';
 import PushNotificationStatus from './components/notification/PushNotificationStatus';
 import useUserStore from './store/useUserStore';
-import WebSocketComp from './components/crawling/CrawlingTable';
+import CrawlingTable from './components/crawling/CrawlingTable';
 import { useEffect } from 'react';
 
 const STORAGE_KEY = 'user-id-manual';
@@ -81,7 +81,7 @@ function App() {
         {/* 웹소켓 테스트 섹션 */}
         <div className="demo-section">
           {/* WebSocketTest 컴포넌트에 현재 사용자 ID를 전달합니다. */}
-          <WebSocketComp/>
+          <CrawlingTable/>
         </div>
 
         {/* 크롤링 스케줄러 섹션 */}
