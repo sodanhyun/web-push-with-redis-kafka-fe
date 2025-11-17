@@ -141,47 +141,31 @@ export const NotificationContainer: React.FC = () => {
    *              컴포넌트 언마운트 시 이벤트 리스너를 제거하여 메모리 누수를 방지합니다.
    */
   useEffect(() => {
-    const handleNotificationClick = (event: Event) => {
-      // 디버그 로그: console.log('[NotificationToast.tsx] notification-clicked event received:', event);
+    const addNotification = (event: Event) => {
       const customEvent = event as CustomEvent;
-      const notificationData = customEvent.detail;
+      // 서비스 워커로부터 받은 데이터 구조에 맞게 `detail.notification`을 참조합니다.
+      const notificationData = customEvent.detail?.notification;
 
       if (notificationData) {
-        // 디버그 로그: console.log('[NotificationToast.tsx] Notification data:', notificationData);
         const newNotification: Notification = {
           id: Date.now().toString(),
           title: notificationData.title || '알림',
           message: notificationData.body || '새로운 메시지가 있습니다.',
-          type: 'info',
+          type: 'info', // 필요에 따라 `notificationData`에서 타입을 지정할 수 있습니다.
           timestamp: Date.now(),
         };
         setNotifications(prev => [...prev, newNotification]);
       }
     };
 
-    const handleNotificationDisplayed = (event: Event) => {
-      const customEvent = event as CustomEvent;
-      const notificationData = customEvent.detail;
-
-      if (notificationData) {
-        // 디버그 로그: console.log('[NotificationToast.tsx] Notification data:', notificationData);
-        const newNotification: Notification = {
-          id: Date.now().toString(),
-          title: notificationData.notification.title || '알림',
-          message: notificationData.notification.body || '새로운 메시지가 있습니다.',
-          type: 'info',
-          timestamp: Date.now(),
-        };
-        setNotifications(prev => [...prev, newNotification]);
-      }
-    };
-
-    window.addEventListener('notification-clicked', handleNotificationClick);
-    window.addEventListener('notification-displayed', handleNotificationDisplayed);
+    // 'push-received' 이벤트를 수신하여 토스트 알림을 표시합니다.
+    window.addEventListener('push-received', addNotification);
+    // 기존 이벤트 리스너들도 새로운 핸들러를 사용하도록 통일합니다.
+    window.addEventListener('notification-clicked', addNotification);
 
     return () => {
-      window.removeEventListener('notification-clicked', handleNotificationClick);
-      window.removeEventListener('notification-displayed', handleNotificationDisplayed);
+      window.removeEventListener('push-received', addNotification);
+      window.removeEventListener('notification-clicked', addNotification);
     };
   }, []);
 

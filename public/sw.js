@@ -79,6 +79,19 @@ self.addEventListener('push', (event) => {
     }
   };
 
+  // 브로드캐스트 채널을 통해 UI에 토스트 알림을 표시하도록 메시지 전송
+  const bc = new BroadcastChannel('notification-channel');
+  bc.postMessage({
+    type: 'PUSH_RECEIVED',
+    notification: {
+      title,
+      body: options.body,
+      icon: options.icon,
+      data: options.data
+    }
+  });
+  bc.close();
+
   event.waitUntil(self.registration.showNotification(title, options));
 });
 
@@ -86,6 +99,19 @@ self.addEventListener('push', (event) => {
 self.addEventListener('notificationclick', (event) => {
   console.log('[Service Worker] Notification click Received.');
   event.notification.close();
+
+  // 클릭 이벤트를 브로드캐스트 채널을 통해 UI에 알림
+  const bc = new BroadcastChannel('notification-channel');
+  bc.postMessage({
+    type: 'NOTIFICATION_CLICKED',
+    notification: {
+      title: event.notification.title,
+      body: event.notification.body,
+      icon: event.notification.icon,
+      data: event.notification.data
+    }
+  });
+  bc.close();
 
   const urlToOpen = event.notification.data.url || '/';
   event.waitUntil(

@@ -6,6 +6,7 @@
  */
 
 import './App.css';
+import useServiceWorkerMessages from './hooks/useServiceWorkerMessages';
 import { usePushNotification } from './hooks/usePushNotification';
 import { NotificationContainer } from './components/notification/NotificationToast'; // 불필요한 쉼표 제거
 
@@ -17,6 +18,7 @@ import CrawlingTable from './components/crawling/CrawlingTable';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import Login from './components/Login';
 import useAuthStore from './store/useAuthStore'; // 사용자 인증 상태를 관리하는 Zustand 스토어
+import type { JSX } from 'react';
 
 /**
  * @function App
@@ -24,6 +26,9 @@ import useAuthStore from './store/useAuthStore'; // 사용자 인증 상태를 �
  *              인증 상태에 따라 라우팅을 제어하고, 주요 기능 컴포넌트들을 통합하여 표시합니다.
  */
 function App() {
+  // 서비스 워커로부터 오는 메시지를 처리하는 훅을 호출합니다.
+  useServiceWorkerMessages();
+  
   // useAuthStore에서 사용자 인증 상태와 userId를 가져옵니다.
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
   const userId = useAuthStore((state) => state.userId);

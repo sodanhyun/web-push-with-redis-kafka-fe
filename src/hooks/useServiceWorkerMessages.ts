@@ -27,8 +27,15 @@ const useServiceWorkerMessages = () => {
      * @param {MessageEvent} event - BroadcastChannel 메시지 이벤트 객체
      */
     const handleBroadcastMessage = (event: MessageEvent) => {
-      // 디버그 로그: console.log('[useServiceWorkerMessages] Message received from broadcast channel:', event.data);
+      console.log('[useServiceWorkerMessages] Message received from broadcast channel:', event.data);
       
+      if (event.data && event.data.type === 'PUSH_RECEIVED') {
+        const customEvent = new CustomEvent('push-received', {
+          detail: event.data,
+        });
+        window.dispatchEvent(customEvent);
+      }
+
       if (event.data && event.data.type === 'NOTIFICATION_CLICKED') {
         // 디버그 로그: console.log('[useServiceWorkerMessages] NOTIFICATION_CLICKED message received.');
         const customEvent = new CustomEvent('notification-clicked', {
@@ -36,17 +43,6 @@ const useServiceWorkerMessages = () => {
         });
         // 디버그 로그: console.log('[useServiceWorkerMessages] Dispatching notification-clicked event:', customEvent);
         window.dispatchEvent(customEvent);
-      }
-      
-      if (event.data && event.data.type === 'NOTIFICATION_DISPLAYED') {
-        const customEvent = new CustomEvent('notification-displayed', {
-          detail: event.data,
-        });
-        window.dispatchEvent(customEvent);
-      }
-      
-      if (event.data && event.data.type === 'NOTIFICATION_ERROR') {
-        console.error('[useServiceWorkerMessages] NOTIFICATION_ERROR message received:', event.data.error);
       }
     };
 
